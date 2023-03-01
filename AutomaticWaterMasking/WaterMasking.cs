@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Xml;
 
@@ -124,7 +125,7 @@ namespace AutomaticWaterMasking
         }
     }
 
-    class AreaKMLFromOSMDataCreator
+    public class AreaKMLFromOSMDataCreator
     {
         private static Dictionary<string, Point> GetNodeIDsToCoords(XmlDocument d)
         {
@@ -231,7 +232,7 @@ namespace AutomaticWaterMasking
             return waysInThisMultipolygon;
         }
 
-        private static void MergeMultipolygonWays(List<string> waysInThisMultipolygon, Dictionary<string, Way<Point>> wayIDsToWays, string relationID, HashSet<Way<Point>> toDelete, HashSet<Way<Point>> toAdd)
+        public static void MergeMultipolygonWays(List<string> waysInThisMultipolygon, Dictionary<string, Way<Point>> wayIDsToWays, string relationID, HashSet<Way<Point>> toDelete, HashSet<Way<Point>> toAdd)
         {
             Dictionary<string, Way<Point>> waysCopy = new Dictionary<string, Way<Point>>(wayIDsToWays);
             HashSet<Way<Point>> merged = new HashSet<Way<Point>>();
@@ -298,7 +299,7 @@ namespace AutomaticWaterMasking
             }
         }
 
-        private static Dictionary<string, Way<Point>> GetWays(string OSMKML, bool mergeMultipolygons)
+        public static Dictionary<string, Way<Point>> GetWays(string OSMKML, bool mergeMultipolygons)
         {
             XmlDocument d = new XmlDocument();
             d.LoadXml(OSMKML);
@@ -466,21 +467,118 @@ namespace AutomaticWaterMasking
             return coastOSM;
         }
 
+        // TODO: implement
+        private static List<Way<Point>> CoastWaysToPolygon(Dictionary<string, Way<Point>> coastWays)
+        {
+            List<Way<Point>> polygons = new List<Way<Point>>();
+
+            return polygons;
+        }
+
         public static List<Way<Point>> CreatePolygons(string coastXML, string waterXML)
         {
-            throw new NotImplementedException();
+            Dictionary<string, Way<Point>> coastWays = AreaKMLFromOSMDataCreator.GetWays(coastXML, true);
+            Dictionary<string, Way<Point>> waterWays = AreaKMLFromOSMDataCreator.GetWays(waterXML, true);
+            MergeCoastLines(coastWays);
+            List<Way<Point>> polygons = new List<Way<Point>>();
+            foreach (KeyValuePair<string, Way<Point>> kv in waterWays)
+            {
+                polygons.Add(kv.Value);
+            }
+            List<Way<Point>> coastPolygons = CoastWaysToPolygon(coastWays);
+            foreach (Way<Point> way in coastPolygons)
+            {
+                polygons.Add(way);
+            }
 
-            return null;
+            return polygons;
+        }
+
+        // TODO: the way I merge lines that aren't part of a multipolygon is a hack. FIXME
+        private static void MergeCoastLines(Dictionary<string, Way<Point>> coastWays)
+        {
+            List<string> mergeMe = new List<string>(coastWays.Keys);
+            HashSet<Way<Point>> toAdd = new HashSet<Way<Point>>();
+            HashSet<Way<Point>> toDelete = new HashSet<Way<Point>>();
+            AreaKMLFromOSMDataCreator.MergeMultipolygonWays(mergeMe, coastWays, null, toDelete, toAdd);
+
+            foreach (Way<Point> way in toDelete)
+            {
+                coastWays.Remove(way.wayID);
+            }
+
+            foreach (Way<Point> way in toAdd)
+            {
+                coastWays.Add(way.wayID, way);
+            }
         }
 
         public static List<Way<Point>> GetPolygons(DownloadArea d, string saveLoc)
         {
             string coastXML = DownloadOsmCoastData(d, saveLoc + @"\coast.xml");
             string waterXML = DownloadOsmWaterData(d, saveLoc + @"\water.xml");
+
             List<Way<Point>> polygons = CreatePolygons(coastXML, waterXML);
 
 
             return polygons;
+        }
+
+        public struct tXYCoord
+        {
+            public Double mX;
+            public Double mY;
+        }
+
+        public static tXYCoord ConvertXYLatLongToPixel(tXYCoord iXYCoord, Double startLat, Double startLong, Double vPixelPerLongitude, Double vPixelPerLatitude)
+        {
+            tXYCoord vPixelXYCoord;
+
+            vPixelXYCoord.mX = vPixelPerLongitude * (iXYCoord.mX - startLong);
+            vPixelXYCoord.mY = -vPixelPerLatitude * (startLat - iXYCoord.mY);
+
+            return vPixelXYCoord;
+        }
+        public static tXYCoord CoordToPixel(double lat, double longi, double mAreaNWCornerLatitude, double mAreaNWCornerLongitude, Double vPixelPerLongitude,
+                                    Double vPixelPerLatitude)
+        {
+            tXYCoord tempCoord;
+            tempCoord.mX = longi;
+            tempCoord.mY = lat;
+            tXYCoord pixel = ConvertXYLatLongToPixel(tempCoord, mAreaNWCornerLatitude, mAreaNWCornerLongitude, vPixelPerLongitude, vPixelPerLatitude);
+            pixel.mX -= 0.5f;
+            pixel.mY -= 0.5f;
+
+            return pixel;
+        }
+
+        public static Bitmap GetMask(string outPath, int width, int height, Point NW, Point SE, List<Way<Point>> polygons)
+        {
+            Bitmap bmp = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+            Double pixelsPerLon = -Convert.ToDouble(width) / (NW.X - SE.X);
+            Double pixelsPerLat = Convert.ToDouble(height) / (NW.Y - SE.Y);
+
+            using (Graphics g = Graphics.FromImage(bmp))
+            {
+                SolidBrush b = new SolidBrush(Color.White);
+                g.FillRectangle(Brushes.Black, 0, 0, bmp.Width, bmp.Height);
+                foreach (Way<Point> way in polygons)
+                {
+
+                    List<PointF> l = new List<PointF>();
+                    foreach (Point p in way)
+                    {
+                        tXYCoord pixel = CoordToPixel(p.Y, p.X, NW.Y, NW.X, pixelsPerLon, pixelsPerLat);
+
+                        l.Add(new PointF((float)pixel.mX, (float)pixel.mY));
+                    }
+                    PointF[] pf = l.ToArray();
+                    g.FillPolygon(b, pf);
+
+                }
+            }
+
+            return bmp;
         }
     }
 }
