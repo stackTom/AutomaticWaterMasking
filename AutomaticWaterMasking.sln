@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.32630.194
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutomaticWaterMasking", "AutomaticWaterMasking\AutomaticWaterMasking.csproj", "{1767F694-8B35-4E54-8098-BD2F8646C5E2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutomaticWaterMaskingTest", "AutomaticWaterMaskingTest\AutomaticWaterMaskingTest.csproj", "{0EFDB4BC-C272-42AC-A2C9-726E01B75F3B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1767F694-8B35-4E54-8098-BD2F8646C5E2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1767F694-8B35-4E54-8098-BD2F8646C5E2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1767F694-8B35-4E54-8098-BD2F8646C5E2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1767F694-8B35-4E54-8098-BD2F8646C5E2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0EFDB4BC-C272-42AC-A2C9-726E01B75F3B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0EFDB4BC-C272-42AC-A2C9-726E01B75F3B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0EFDB4BC-C272-42AC-A2C9-726E01B75F3B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0EFDB4BC-C272-42AC-A2C9-726E01B75F3B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {510445D7-BDDC-4B1F-BD1E-868E288C60E6}
+	EndGlobalSection
+EndGlobal
