@@ -8,19 +8,24 @@ namespace AutomaticWaterMasking
 {
     public class XYPair
     {
-        public double X;
-        public double Y;
+        public decimal X;
+        public decimal Y;
 
-        public XYPair(double x, double y)
+        public XYPair(decimal x, decimal y)
         {
             this.X = x;
             this.Y = y;
+        }
+
+        public override string ToString()
+        {
+            return this.Y + ", " + this.X;
         }
     }
 
     public class Point : XYPair
     {
-        public Point(double x, double y) : base(x, y) { }
+        public Point(decimal x, decimal y) : base(x, y) { }
     }
 
     public class Way<T> : System.Collections.Generic.List<T> where T : Point
@@ -123,6 +128,102 @@ namespace AutomaticWaterMasking
         {
             return this.wayID.GetHashCode();
         }
+
+        private class Edge
+        {
+            public Point p1;
+            public Point p2;
+            public decimal A;
+            public decimal B;
+            public decimal C;
+
+            public Edge(Point p1, Point p2)
+            {
+                this.p1 = p1;
+                this.p2 = p2;
+
+                this.A = p2.Y - p1.Y;
+                this.B = p1.X - p2.X;
+                this.C= this.A * p1.X + this.B * p1.Y;
+            }
+
+            private decimal EPSILON = 0.000000000000000001m;
+            public bool SafeLessThan(decimal d1, decimal d2)
+            {
+                return (d1 - d2) < -EPSILON;
+            }
+
+            public bool SafeGreaterThan(decimal d1, decimal d2)
+            {
+                return (d1 - d2) > EPSILON;
+            }
+
+            public bool PointInEdge(Point p)
+            {
+                decimal minX = Math.Min(this.p1.X, this.p2.X);
+                decimal maxX = Math.Max(this.p1.X, this.p2.X);
+                decimal minY = Math.Min(this.p1.Y, this.p2.Y);
+                decimal maxY = Math.Max(this.p1.Y, this.p2.Y);
+
+                if (SafeLessThan(p.X, minX) || SafeGreaterThan(p.X, maxX) || SafeLessThan(p.Y, minY) || SafeGreaterThan(p.Y, maxY))
+                {
+                    return false;
+                }
+
+                return true;
+            }
+
+            // returns point of intersection, null if no intersection
+            public Point IntersectsWith(Edge e)
+            {
+                decimal delta = this.A * e.B - e.A * this.B;
+
+                if (delta == 0)
+                {
+                    return null;
+                }
+
+                decimal x = (e.B * this.C - this.B * e.C) / delta;
+                decimal y = (this.A * e.C - e.A * this.C) / delta;
+                Point possibleIntersection = new Point(x, y);
+
+                if (this.PointInEdge(possibleIntersection) && e.PointInEdge(possibleIntersection))
+                {
+                    return possibleIntersection;
+                }
+
+                return null;
+            }
+
+            public override string ToString()
+            {
+                return "(" + this.p1.ToString() + " " + this.p2.ToString() + ")";
+            }
+        }
+
+        // returns point of intersection, null if no intersection
+        public List<Point> IntersectsWith(Way<Point> check)
+        {
+            List<Point> intersections = new List<Point>();
+            // TODO: optimize
+            for (int i = 0; i < this.Count - 1; i++)
+            {
+                Edge thisEdge = new Edge(this[i], this[i + 1]);
+                Edge checkEdge = null;
+
+                for (int j = 0; j < check.Count - 1; j++)
+                {
+                    checkEdge = new Edge(check[j], check[j + 1]);
+                    Point intersection = thisEdge.IntersectsWith(checkEdge);
+                    if (intersection != null)
+                    {
+                        intersections.Add(intersection);
+                    }
+                }
+            }
+
+            return intersections.Count > 0 ? intersections : null;
+        }
     }
 
     public class AreaKMLFromOSMDataCreator
@@ -133,8 +234,8 @@ namespace AutomaticWaterMasking
             XmlNodeList nodeTags = d.GetElementsByTagName("node");
             foreach (XmlElement node in nodeTags)
             {
-                double lat = Convert.ToDouble(node.GetAttribute("lat"));
-                double lon = Convert.ToDouble(node.GetAttribute("lon"));
+                decimal lat = Convert.ToDecimal(node.GetAttribute("lat"));
+                decimal lon = Convert.ToDecimal(node.GetAttribute("lon"));
                 string id = node.GetAttribute("id");
                 Point coords = new Point(lon, lat);
                 nodeIDsToCoords.Add(id, coords);
@@ -359,12 +460,12 @@ namespace AutomaticWaterMasking
     }
     public struct DownloadArea
     {
-        public double startLon;
-        public double endLon;
-        public double startLat;
-        public double endLat;
+        public decimal startLon;
+        public decimal endLon;
+        public decimal startLat;
+        public decimal endLat;
 
-        public DownloadArea(double startLon, double endLon, double startLat, double endLat)
+        public DownloadArea(decimal startLon, decimal endLon, decimal startLat, decimal endLat)
         {
             this.startLon = startLon;
             this.endLon = endLon;
@@ -372,7 +473,7 @@ namespace AutomaticWaterMasking
             this.endLat = endLat;
         }
 
-        public void addPadding(double padding)
+        public void addPadding(decimal padding)
         {
             this.startLat += padding;
             this.endLat -= padding;
@@ -481,15 +582,24 @@ namespace AutomaticWaterMasking
             Dictionary<string, Way<Point>> waterWays = AreaKMLFromOSMDataCreator.GetWays(waterXML, true);
             MergeCoastLines(coastWays);
             List<Way<Point>> polygons = new List<Way<Point>>();
-            foreach (KeyValuePair<string, Way<Point>> kv in waterWays)
+
+            //foreach (KeyValuePair<string, Way<Point>> kv in waterWays)
+            foreach (KeyValuePair<string, Way<Point>> kv in coastWays)
             {
                 polygons.Add(kv.Value);
+            }
+
+            for (int i = 0; i < polygons.Count; i++)
+            {
+                Way<Point> p = polygons[i];
+                List<Point> intersection = p.IntersectsWith(box);
             }
             List<Way<Point>> coastPolygons = CoastWaysToPolygon(coastWays);
             foreach (Way<Point> way in coastPolygons)
             {
                 polygons.Add(way);
             }
+
 
             return polygons;
         }
@@ -526,11 +636,11 @@ namespace AutomaticWaterMasking
 
         public struct tXYCoord
         {
-            public Double mX;
-            public Double mY;
+            public decimal mX;
+            public decimal mY;
         }
 
-        public static tXYCoord ConvertXYLatLongToPixel(tXYCoord iXYCoord, Double startLat, Double startLong, Double vPixelPerLongitude, Double vPixelPerLatitude)
+        public static tXYCoord ConvertXYLatLongToPixel(tXYCoord iXYCoord, decimal startLat, decimal startLong, decimal vPixelPerLongitude, decimal vPixelPerLatitude)
         {
             tXYCoord vPixelXYCoord;
 
@@ -539,15 +649,15 @@ namespace AutomaticWaterMasking
 
             return vPixelXYCoord;
         }
-        public static tXYCoord CoordToPixel(double lat, double longi, double mAreaNWCornerLatitude, double mAreaNWCornerLongitude, Double vPixelPerLongitude,
-                                    Double vPixelPerLatitude)
+        public static tXYCoord CoordToPixel(decimal lat, decimal longi, decimal mAreaNWCornerLatitude, decimal mAreaNWCornerLongitude, decimal vPixelPerLongitude,
+                                    decimal vPixelPerLatitude)
         {
             tXYCoord tempCoord;
             tempCoord.mX = longi;
             tempCoord.mY = lat;
             tXYCoord pixel = ConvertXYLatLongToPixel(tempCoord, mAreaNWCornerLatitude, mAreaNWCornerLongitude, vPixelPerLongitude, vPixelPerLatitude);
-            pixel.mX -= 0.5f;
-            pixel.mY -= 0.5f;
+            pixel.mX -= 0.5m;
+            pixel.mY -= 0.5m;
 
             return pixel;
         }
@@ -555,8 +665,8 @@ namespace AutomaticWaterMasking
         public static Bitmap GetMask(string outPath, int width, int height, Point NW, Point SE, List<Way<Point>> polygons)
         {
             Bitmap bmp = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
-            Double pixelsPerLon = -Convert.ToDouble(width) / (NW.X - SE.X);
-            Double pixelsPerLat = Convert.ToDouble(height) / (NW.Y - SE.Y);
+            decimal pixelsPerLon = -Convert.ToDecimal(width) / (NW.X - SE.X);
+            decimal pixelsPerLat = Convert.ToDecimal(height) / (NW.Y - SE.Y);
 
             using (Graphics g = Graphics.FromImage(bmp))
             {
