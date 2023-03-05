@@ -224,6 +224,52 @@ namespace AutomaticWaterMasking
 
             return intersections.Count > 0 ? intersections : null;
         }
+
+        public static void AddMissingOSMAttributes(XmlElement nodeEle)
+        {
+            nodeEle.SetAttribute("uid", "1");
+            nodeEle.SetAttribute("changeset", "1");
+            nodeEle.SetAttribute("version", "1");
+            nodeEle.SetAttribute("timestamp", "2000-01-01T00:00:00Z");
+            nodeEle.SetAttribute("user", "AutomaticWaterMasker");
+        }
+
+        public string ToOSMXML()
+        {
+            XmlDocument d = new XmlDocument();
+            XmlDeclaration xmlDeclaration = d.CreateXmlDeclaration("1.0", "UTF-8", null);
+            XmlElement root = d.DocumentElement;
+            d.InsertBefore(xmlDeclaration, root);
+            XmlElement osmEle = d.CreateElement(string.Empty, "osm", string.Empty);
+            d.AppendChild(osmEle);
+            osmEle.SetAttribute("version", "0.6");
+            osmEle.SetAttribute("generator", "AutomaticWaterMasking");
+            XmlElement wayEle = d.CreateElement(string.Empty, "way", string.Empty);
+            wayEle.SetAttribute("id", this.wayID != null ? this.wayID : "1");
+            AddMissingOSMAttributes(wayEle);
+
+            XmlElement metaEle = d.CreateElement(string.Empty, "meta", string.Empty);
+            osmEle.AppendChild(metaEle);
+
+            int idx = 1; // must start at 1 or get error in JOSM...
+            foreach (Point p in this)
+            {
+                XmlElement nodeEle = d.CreateElement(string.Empty, "node", string.Empty);
+                nodeEle.SetAttribute("id", idx.ToString());
+                nodeEle.SetAttribute("lat", p.Y.ToString());
+                nodeEle.SetAttribute("lon", p.X.ToString());
+                AddMissingOSMAttributes(nodeEle);
+                osmEle.AppendChild(nodeEle);
+
+                XmlElement ndEle = d.CreateElement(string.Empty, "nd", string.Empty);
+                ndEle.SetAttribute("ref", idx.ToString());
+                wayEle.AppendChild(ndEle);
+                idx++;
+            }
+            osmEle.AppendChild(wayEle);
+
+            return d.OuterXml;
+        }
     }
 
     public class AreaKMLFromOSMDataCreator
@@ -491,6 +537,25 @@ namespace AutomaticWaterMasking
             "http://overpass.osm.rambler.ru/cgi/interpreter",
         };
 
+        // sets missing values from OSM data to make a valid OSM file that JOSM can load
+        private static string FixOSM(string OSM)
+        {
+            XmlDocument d = new XmlDocument();
+            d.LoadXml(OSM);
+            XmlNodeList nodeTags = d.GetElementsByTagName("node");
+            foreach (XmlElement node in nodeTags)
+            {
+                Way<Point>.AddMissingOSMAttributes(node);
+            }
+            nodeTags = d.GetElementsByTagName("way");
+            foreach (XmlElement node in nodeTags)
+            {
+                Way<Point>.AddMissingOSMAttributes(node);
+            }
+
+            return d.OuterXml;
+        }
+
         private static string DownloadOSM(string queryParams)
         {
             bool keepTrying = false;
@@ -527,7 +592,7 @@ namespace AutomaticWaterMasking
                 }
             } while (keepTrying);
 
-            return contents;
+            return FixOSM(contents);
         }
 
         private static string DownloadOsmWaterData(DownloadArea d, string saveLoc)
@@ -576,7 +641,7 @@ namespace AutomaticWaterMasking
             return polygons;
         }
 
-        public static List<Way<Point>> CreatePolygons(string coastXML, string waterXML)
+        public static List<Way<Point>> CreatePolygons(string coastXML, string waterXML, Way<Point> viewPort)
         {
             Dictionary<string, Way<Point>> coastWays = AreaKMLFromOSMDataCreator.GetWays(coastXML, true);
             Dictionary<string, Way<Point>> waterWays = AreaKMLFromOSMDataCreator.GetWays(waterXML, true);
@@ -592,14 +657,13 @@ namespace AutomaticWaterMasking
             for (int i = 0; i < polygons.Count; i++)
             {
                 Way<Point> p = polygons[i];
-                List<Point> intersection = p.IntersectsWith(box);
+                List<Point> intersection = p.IntersectsWith(viewPort);
             }
             List<Way<Point>> coastPolygons = CoastWaysToPolygon(coastWays);
             foreach (Way<Point> way in coastPolygons)
             {
                 polygons.Add(way);
             }
-
 
             return polygons;
         }
@@ -625,11 +689,16 @@ namespace AutomaticWaterMasking
 
         public static List<Way<Point>> GetPolygons(DownloadArea d, string saveLoc)
         {
-            string coastXML = DownloadOsmCoastData(d, saveLoc + @"\coast.xml");
-            string waterXML = DownloadOsmWaterData(d, saveLoc + @"\water.xml");
+            string coastXML = DownloadOsmCoastData(d, saveLoc + @"\coast.osm");
+            string waterXML = DownloadOsmWaterData(d, saveLoc + @"\water.osm");
+            Way<Point> viewPort = new Way<Point>();
+            viewPort.Add(new Point(d.startLon, d.startLat));
+            viewPort.Add(new Point(d.endLon, d.startLat));
+            viewPort.Add(new Point(d.endLon, d.endLat));
+            viewPort.Add(new Point(d.startLon, d.endLat));
+            viewPort.Add(new Point(d.startLon, d.startLat));
 
-            List<Way<Point>> polygons = CreatePolygons(coastXML, waterXML);
-
+            List<Way<Point>> polygons = CreatePolygons(coastXML, waterXML, viewPort);
 
             return polygons;
         }
