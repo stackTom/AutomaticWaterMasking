@@ -26,6 +26,11 @@ namespace AutomaticWaterMasking
     public class Point : XYPair
     {
         public Point(decimal x, decimal y) : base(x, y) { }
+
+        public override int GetHashCode()
+        {
+            return this.ToString().GetHashCode();
+        }
     }
 
     public class Way<T> : System.Collections.Generic.List<T> where T : Point
@@ -202,7 +207,7 @@ namespace AutomaticWaterMasking
         }
 
         // returns point of intersection, null if no intersection
-        public List<Point> IntersectsWith(Way<Point> check)
+        public List<Point> IntersectsWith(Way<Point> check, bool insertIntersectionIntoWay, bool insertIntersectionIntoComparisonWay)
         {
             List<Point> intersections = new List<Point>();
             // TODO: optimize
@@ -211,6 +216,7 @@ namespace AutomaticWaterMasking
                 Edge thisEdge = new Edge(this[i], this[i + 1]);
                 Edge checkEdge = null;
 
+                bool addedIntersectionToThis = false;
                 for (int j = 0; j < check.Count - 1; j++)
                 {
                     checkEdge = new Edge(check[j], check[j + 1]);
@@ -218,7 +224,21 @@ namespace AutomaticWaterMasking
                     if (intersection != null)
                     {
                         intersections.Add(intersection);
+                        if (insertIntersectionIntoWay)
+                        {
+                            this.Insert(i + 1, (T)intersection);
+                            addedIntersectionToThis = true;
+                        }
+                        if (insertIntersectionIntoComparisonWay)
+                        {
+                            check.Insert(j + 1, (T)intersection);
+                            j++;
+                        }
                     }
+                }
+                if (addedIntersectionToThis)
+                {
+                    i++;
                 }
             }
 
@@ -633,10 +653,128 @@ namespace AutomaticWaterMasking
             return coastOSM;
         }
 
-        // TODO: implement
-        private static List<Way<Point>> CoastWaysToPolygon(Dictionary<string, Way<Point>> coastWays)
+        private static void PopulatePointToWaysDict(Dictionary<Point, List<Way<Point>>> dict, Way<Point> way)
+        {
+            foreach (Point p in way)
+            {
+                if (dict.ContainsKey(p))
+                {
+                    dict[p].Add(way);
+                }
+                else
+                {
+                    List<Way<Point>> l = new List<Way<Point>>();
+                    l.Add(way);
+                    dict.Add(p, l);
+                }
+            }
+        }
+
+        private static List<Way<Point>> CoastWaysToPolygon(Dictionary<string, Way<Point>> coastWays, Way<Point> viewPort)
         {
             List<Way<Point>> polygons = new List<Way<Point>>();
+            Dictionary<string, List<Point>> wayIDstoIntersections = new Dictionary<string, List<Point>>();
+            Dictionary<Point, List<Way<Point>>> pointToWays = new Dictionary<Point, List<Way<Point>>>();
+
+            int j = 0;
+            foreach (KeyValuePair<string, Way<Point>> kv in coastWays)
+            {
+                Way<Point> way = kv.Value;
+                List<Point> intersections = way.IntersectsWith(viewPort, true, true);
+                wayIDstoIntersections.Add(kv.Key, intersections);
+                PopulatePointToWaysDict(pointToWays, way);
+
+                string s = way.ToOSMXML();
+                File.WriteAllText(@"C:\Users\fery2\Desktop\MODIFIEDWAY" + j.ToString() + ".osm", s);
+                File.WriteAllText(@"C:\Users\fery2\Desktop\MODIFIEDVIEWPORT.osm", viewPort.ToOSMXML());
+                j++;
+            }
+            PopulatePointToWaysDict(pointToWays, viewPort);
+            foreach (KeyValuePair<string, List<Point>> kv in wayIDstoIntersections)
+            {
+                string wayID = kv.Key;
+                Way<Point> way = coastWays[wayID];
+                List<Point> intersections = kv.Value;
+                Point firstIntersection = intersections[0];
+                int idx = way.IndexOf(firstIntersection);
+                Way<Point> polygon = new Way<Point>();
+                Way<Point> curWay = way;
+                Point curPoint = curWay[idx];
+                polygon.Add(curPoint);
+                idx++;
+                curPoint = curWay[idx];
+                polygon.Add(curPoint);
+                idx++;
+                bool followViewPort = true;
+                while (polygon.Count < 4 || !polygon.IsClosedWay())
+                {
+                    curPoint = curWay[idx];
+                    polygon.Add(curPoint);
+                    List<Way<Point>> waysContainingPoint = pointToWays[curPoint]; // TODO: handle when more than one way contains it
+                    if (waysContainingPoint.Count == 0)
+                    {
+                        throw new Exception("Something went wrong trying to create coast polygons");
+                    }
+                    else if (waysContainingPoint.Count == 1)
+                    {
+                        // only the viewport and this way contains this point? TODO: check this is true
+                        curWay = waysContainingPoint[0];
+                    }
+                    else if (waysContainingPoint.Count == 2)
+                    {
+                        int idxOfWay = waysContainingPoint.IndexOf(way);
+                        if (idxOfWay != -1)
+                        {
+                            // this way part of intersection. so choose viewPort
+                            curWay = viewPort;
+                        }
+                        else
+                        {
+                            followViewPort = !followViewPort;
+                            if (followViewPort)
+                            {
+                                curWay = viewPort;
+                            }
+                            else
+                            {
+                                // choose the other way that is not the viewPort
+                                foreach (Way<Point> w in waysContainingPoint)
+                                {
+                                    if (!w.Equals(viewPort))
+                                    {
+                                        curWay = w;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // more than 2 intersecting ways. choose another way that is not the viewPort or the current way
+                        foreach (Way<Point> w in waysContainingPoint)
+                        {
+                            if (!w.Equals(way) && !w.Equals(viewPort))
+                            {
+                                curWay = w;
+                            }
+                        }
+                    }
+                    idx = curWay.IndexOf(curPoint);
+                    // need to skip it because start == end in these closed ways; otherwise, get infinite loop
+                    if (idx == curWay.Count - 1)
+                    {
+                        idx = 0;
+                    }
+
+                    idx = (idx + 1) % curWay.Count;
+                }
+                if (!polygons.Contains(polygon))
+                {
+                    polygons.Add(polygon);
+                }
+            }
+
 
             return polygons;
         }
@@ -648,18 +786,12 @@ namespace AutomaticWaterMasking
             MergeCoastLines(coastWays);
             List<Way<Point>> polygons = new List<Way<Point>>();
 
-            //foreach (KeyValuePair<string, Way<Point>> kv in waterWays)
-            foreach (KeyValuePair<string, Way<Point>> kv in coastWays)
+            foreach (KeyValuePair<string, Way<Point>> kv in waterWays)
             {
                 polygons.Add(kv.Value);
             }
 
-            for (int i = 0; i < polygons.Count; i++)
-            {
-                Way<Point> p = polygons[i];
-                List<Point> intersection = p.IntersectsWith(viewPort);
-            }
-            List<Way<Point>> coastPolygons = CoastWaysToPolygon(coastWays);
+            List<Way<Point>> coastPolygons = CoastWaysToPolygon(coastWays, viewPort);
             foreach (Way<Point> way in coastPolygons)
             {
                 polygons.Add(way);
