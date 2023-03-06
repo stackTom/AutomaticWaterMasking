@@ -149,10 +149,10 @@ namespace AutomaticWaterMasking
 
                 this.A = p2.Y - p1.Y;
                 this.B = p1.X - p2.X;
-                this.C= this.A * p1.X + this.B * p1.Y;
+                this.C = this.A * p1.X + this.B * p1.Y;
             }
 
-            private decimal EPSILON = 0.000000000000000001m;
+            private decimal EPSILON = 0.00000000000001m;
             public bool SafeLessThan(decimal d1, decimal d2)
             {
                 return (d1 - d2) < -EPSILON;
@@ -695,42 +695,40 @@ namespace AutomaticWaterMasking
                 string wayID = kv.Key;
                 Way<Point> way = coastWays[wayID];
                 List<Point> intersections = kv.Value;
-                Point firstIntersection = intersections[0];
-                int idx = way.IndexOf(firstIntersection);
-                Way<Point> polygon = new Way<Point>();
-                Way<Point> curWay = way;
-                Point curPoint = curWay[idx];
-                polygon.Add(curPoint);
-                idx++;
-                curPoint = curWay[idx];
-                polygon.Add(curPoint);
-                idx++;
-                bool followViewPort = true;
-                while (polygon.Count < 4 || !polygon.IsClosedWay())
+                while (intersections.Count > 0)
                 {
+                    int idx = way.IndexOf(intersections[0]);
+                    Way<Point> polygon = new Way<Point>();
+                    Way<Point> curWay = way;
+                    Point curPoint = curWay[idx];
+                    polygon.Add(curPoint);
+                    intersections.Remove(curPoint);
+                    idx++;
+
                     curPoint = curWay[idx];
                     polygon.Add(curPoint);
-                    List<Way<Point>> waysContainingPoint = pointToWays[curPoint]; // TODO: handle when more than one way contains it
-                    if (waysContainingPoint.Count == 0)
+                    idx++;
+                    bool followViewPort = true;
+                    while (polygon.Count < 4 || !polygon.IsClosedWay())
                     {
-                        throw new Exception("Something went wrong trying to create coast polygons");
-                    }
-                    else if (waysContainingPoint.Count == 1)
-                    {
-                        // only the viewport and this way contains this point? TODO: check this is true
-                        curWay = waysContainingPoint[0];
-                    }
-                    else if (waysContainingPoint.Count == 2)
-                    {
-                        int idxOfWay = waysContainingPoint.IndexOf(way);
-                        if (idxOfWay != -1)
+                        curPoint = curWay[idx];
+                        if (intersections.Contains(curPoint))
                         {
-                            // this way part of intersection. so choose viewPort
-                            curWay = viewPort;
+                            intersections.Remove(curPoint);
                         }
-                        else
+                        polygon.Add(curPoint);
+                        List<Way<Point>> waysContainingPoint = pointToWays[curPoint]; // TODO: handle when more than one way contains it
+                        if (waysContainingPoint.Count == 0)
                         {
-                            followViewPort = !followViewPort;
+                            throw new Exception("Something went wrong trying to create coast polygons");
+                        }
+                        else if (waysContainingPoint.Count == 1)
+                        {
+                            // only the viewport and this way contains this point? TODO: check this is true
+                            curWay = waysContainingPoint[0];
+                        }
+                        else if (waysContainingPoint.Contains(viewPort))
+                        {
                             if (followViewPort)
                             {
                                 curWay = viewPort;
@@ -747,31 +745,26 @@ namespace AutomaticWaterMasking
                                     }
                                 }
                             }
+                            followViewPort = !followViewPort;
                         }
-                    }
-                    else
-                    {
-                        // more than 2 intersecting ways. choose another way that is not the viewPort or the current way
-                        foreach (Way<Point> w in waysContainingPoint)
+                        else
                         {
-                            if (!w.Equals(way) && !w.Equals(viewPort))
-                            {
-                                curWay = w;
-                            }
+                            // choose the other way that is not the viewPort
+                            curWay = waysContainingPoint[0];
                         }
-                    }
-                    idx = curWay.IndexOf(curPoint);
-                    // need to skip it because start == end in these closed ways; otherwise, get infinite loop
-                    if (idx == curWay.Count - 1)
-                    {
-                        idx = 0;
-                    }
+                        idx = curWay.IndexOf(curPoint);
+                        // need to skip it because start == end in these closed ways; otherwise, get infinite loop
+                        if (idx == curWay.Count - 1)
+                        {
+                            idx = 0;
+                        }
 
-                    idx = (idx + 1) % curWay.Count;
-                }
-                if (!polygons.Contains(polygon))
-                {
-                    polygons.Add(polygon);
+                        idx = (idx + 1) % curWay.Count;
+                    }
+                    if (true || !polygons.Contains(polygon))
+                    {
+                        polygons.Add(polygon);
+                    }
                 }
             }
 
