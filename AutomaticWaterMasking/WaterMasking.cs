@@ -762,6 +762,140 @@ namespace AutomaticWaterMasking
             }
         }
 
+        private static bool PointInViewport(Point p, Way<Point> viewPort)
+        {
+            Way<Point> temp = new Way<Point>(viewPort);
+            temp.Sort(delegate(Point p1, Point p2)
+            {
+                if (p1.X - p2.X > 0)
+                {
+                    return 1;
+                }
+                if (p1.X - p2.X < 0)
+                {
+                    return -1;
+                }
+
+                return 0;
+            });
+            decimal minX = temp[0].X;
+            decimal maxX = temp[temp.Count - 2].X;
+
+            temp.Sort(delegate(Point p1, Point p2)
+            {
+                if (p1.Y - p2.Y > 0)
+                {
+                    return 1;
+                }
+                if (p1.Y - p2.Y < 0)
+                {
+                    return -1;
+                }
+
+                return 0;
+            });
+            decimal minY = temp[0].Y;
+            decimal maxY = temp[temp.Count - 2].Y;
+
+            if (Way<Point>.SafeLessThan(p.X, minX) || Way<Point>.SafeGreaterThan(p.X, maxX) || Way<Point>.SafeLessThan(p.Y, minY) || Way<Point>.SafeGreaterThan(p.Y, maxY))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private static List<Way<Point>> TryToBuildPolygons(Dictionary<Point, List<Way<Point>>> pointToWays, ref Way<Point> startingWay, Way<Point> viewPort, ref int startingIdx, ref bool followViewPort, List<Point> intersections)
+        {
+            List<Way<Point>> polygons = new List<Way<Point>>();
+            Way<Point> polygon = null;
+            int idx = startingIdx;
+            polygon = new Way<Point>();
+            Way<Point> curWay = startingWay;
+            Point curPoint = null;
+            // use original viewPort to see whether waysContaining point contains the original viewPort (since doing a custom hash of a Way by polygons would be expensive)
+            // use this tempViewPort for actually tracing the path, as it will have it's edges removed as more polygons are created. This allows incorrect path's from
+            // being formed using points which have already been formed into polygons.
+            Way<Point> tempViewPort = new Way<Point>(viewPort);
+            while (intersections.Count > 0)
+            {
+                while (!polygon.IsClosedWay())
+                {
+                    curPoint = curWay[idx];
+                    if (!PointInViewport(curPoint, tempViewPort))
+                    {
+                        startingIdx = idx - 1;
+                        startingWay = curWay;
+                        followViewPort = true;
+                        return null;
+                    }
+                    if (intersections.Contains(curPoint))
+                    {
+                        intersections.Remove(curPoint);
+                    }
+                    polygon.Add(curPoint);
+                    List<Way<Point>> waysContainingPoint = pointToWays[curPoint];
+                    if (waysContainingPoint.Count == 0)
+                    {
+                        throw new Exception("Something went wrong trying to create coast polygons");
+                    }
+                    else if (waysContainingPoint.Count == 1)
+                    {
+                        curWay = waysContainingPoint[0];
+                    }
+                    else if (waysContainingPoint.Contains(viewPort))
+                    {
+                        if (followViewPort)
+                        {
+                            curWay = tempViewPort;
+                        }
+                        else
+                        {
+                            // choose the other way that is not the viewPort
+                            foreach (Way<Point> w in waysContainingPoint)
+                            {
+                                if (!w.Equals(viewPort))
+                                {
+                                    curWay = w;
+                                    break;
+                                }
+                            }
+                        }
+                        followViewPort = !followViewPort;
+                    }
+                    else
+                    {
+                        // choose the other way that is not the viewPort
+                        curWay = waysContainingPoint[0];
+                    }
+                    idx = curWay.IndexOf(curPoint);
+                    // need to skip it because start == end in these closed ways; otherwise, get infinite loop
+                    if (idx == curWay.Count - 1)
+                    {
+                        idx = 0;
+                    }
+
+                    idx = (idx + 1) % curWay.Count;
+                }
+                polygons.Add(polygon);
+                foreach (Point p in polygon)
+                {
+                    tempViewPort.Remove(p);
+                }
+
+                if (intersections.Count > 0)
+                {
+                    // reset to make sure all remaining intersections are built into polygons
+                    curWay = tempViewPort;
+                    idx = curWay.IndexOf(intersections[0]);
+                    polygon = new Way<Point>();
+                    followViewPort = true;
+                }
+            }
+
+            return polygons;
+        }
+
         private static List<Way<Point>> CoastWaysToPolygon(Dictionary<string, Way<Point>> coastWays, Way<Point> viewPort)
         {
             List<Way<Point>> polygons = new List<Way<Point>>();
@@ -782,78 +916,32 @@ namespace AutomaticWaterMasking
                 j++;
             }
             PopulatePointToWaysDict(pointToWays, viewPort);
+            bool keepTrying = true;
+            int startingIdx = 0;
+            Way<Point> startingWay = viewPort;
+            bool followViewPort = false;
             foreach (KeyValuePair<string, List<Point>> kv in wayIDstoIntersections)
             {
-                string wayID = kv.Key;
-                Way<Point> way = coastWays[wayID];
-                List<Point> intersections = kv.Value;
-                while (intersections.Count > 0)
+                while (keepTrying)
                 {
-                    int idx = way.IndexOf(intersections[0]);
-                    Way<Point> polygon = new Way<Point>();
-                    Way<Point> curWay = way;
-                    Point curPoint = null;
-
-                    bool followViewPort = true;
-                    while (!polygon.IsClosedWay())
+                    keepTrying = false;
+                    string wayID = kv.Key;
+                    Way<Point> way = coastWays[wayID];
+                    List<Point> intersections = kv.Value;
+                    List<Way<Point>> newPolys = TryToBuildPolygons(pointToWays, ref startingWay, viewPort, ref startingIdx, ref followViewPort, new List<Point>(intersections)); // copy of intersections in case we need to start again
+                    if (newPolys != null)
                     {
-                        curPoint = curWay[idx];
-                        if (intersections.Contains(curPoint))
+                        foreach (Way<Point> w in newPolys)
                         {
-                            intersections.Remove(curPoint);
+                            polygons.Add(w);
                         }
-                        polygon.Add(curPoint);
-                        List<Way<Point>> waysContainingPoint = pointToWays[curPoint]; // TODO: handle when more than one way contains it
-                        if (waysContainingPoint.Count == 0)
-                        {
-                            throw new Exception("Something went wrong trying to create coast polygons");
-                        }
-                        else if (waysContainingPoint.Count == 1)
-                        {
-                            // only the viewport and this way contains this point? TODO: check this is true
-                            curWay = waysContainingPoint[0];
-                        }
-                        else if (waysContainingPoint.Contains(viewPort))
-                        {
-                            if (followViewPort)
-                            {
-                                curWay = viewPort;
-                            }
-                            else
-                            {
-                                // choose the other way that is not the viewPort
-                                foreach (Way<Point> w in waysContainingPoint)
-                                {
-                                    if (!w.Equals(viewPort))
-                                    {
-                                        curWay = w;
-                                        break;
-                                    }
-                                }
-                            }
-                            followViewPort = !followViewPort;
-                        }
-                        else
-                        {
-                            // choose the other way that is not the viewPort
-                            curWay = waysContainingPoint[0];
-                        }
-                        idx = curWay.IndexOf(curPoint);
-                        // need to skip it because start == end in these closed ways; otherwise, get infinite loop
-                        if (idx == curWay.Count - 1)
-                        {
-                            idx = 0;
-                        }
-
-                        idx = (idx + 1) % curWay.Count;
                     }
-                    if (true || !polygons.Contains(polygon))
+                    else
                     {
-                        polygons.Add(polygon);
+                        keepTrying = true;
                     }
                 }
             }
-
 
             return polygons;
         }
