@@ -941,6 +941,10 @@ namespace AutomaticWaterMasking
                         keepTrying = true;
                     }
                 }
+                // reset for next round
+                keepTrying = true;
+                startingWay = viewPort;
+                startingIdx = 0;
             }
 
             return polygons;
