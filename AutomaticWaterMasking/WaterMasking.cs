@@ -134,6 +134,43 @@ namespace AutomaticWaterMasking
             return this.wayID.GetHashCode();
         }
 
+        public void InsertPointAtIndex(Point p, int idx)
+        {
+            if (idx <= 0)
+            {
+                return;
+            }
+
+            Edge curEdge = new Edge(this[idx - 1], this[idx]);
+            Edge newEdge = new Edge(p, this[idx]);
+
+            if (curEdge.GetDirection() == newEdge.GetDirection())
+            {
+                this.Insert(idx, (T)p);
+            }
+            else
+            {
+                // add it one point ahead
+                this.Insert(idx + 1, (T)p);
+            }
+        }
+
+        private static decimal EPSILON = 0.00000000000001m;
+        public static bool SafeLessThan(decimal d1, decimal d2)
+        {
+            return (d1 - d2) < -EPSILON;
+        }
+
+        public static bool SafeGreaterThan(decimal d1, decimal d2)
+        {
+            return (d1 - d2) > EPSILON;
+        }
+
+        public static bool SafeEquals(decimal d1, decimal d2)
+        {
+            return (d1 - d2) < EPSILON;
+        }
+
         private class Edge
         {
             public Point p1;
@@ -152,16 +189,6 @@ namespace AutomaticWaterMasking
                 this.C = this.A * p1.X + this.B * p1.Y;
             }
 
-            private decimal EPSILON = 0.00000000000001m;
-            public bool SafeLessThan(decimal d1, decimal d2)
-            {
-                return (d1 - d2) < -EPSILON;
-            }
-
-            public bool SafeGreaterThan(decimal d1, decimal d2)
-            {
-                return (d1 - d2) > EPSILON;
-            }
 
             public bool PointInEdge(Point p)
             {
@@ -204,6 +231,66 @@ namespace AutomaticWaterMasking
             {
                 return "(" + this.p1.ToString() + " " + this.p2.ToString() + ")";
             }
+
+            public enum Direction
+            {
+                NorthToSouth,
+                SouthToNorth,
+                EastToWest,
+                WestToEast,
+                SWToNE,
+                NEToSW,
+                SEToNW,
+                NWToSE
+            }
+
+            public Direction GetDirection()
+            {
+                // equal lon (x)
+                if (SafeEquals(this.p1.X, this.p2.X))
+                {
+                    // going from north to south, water is on west
+                    if (SafeGreaterThan(this.p1.Y, this.p2.Y))
+                    {
+                        return Direction.NorthToSouth;
+                    }
+                    // going from south to north, water is on east
+                    return Direction.SouthToNorth;
+                }
+                // equal lat (y)
+                if (SafeEquals(this.p1.Y, this.p2.Y))
+                {
+                    // going from east to west, water is on north
+                    if (SafeGreaterThan(this.p1.X, this.p2.X))
+                    {
+                        return Direction.EastToWest;
+                    }
+                    // going from west to east, water is on south
+                    return Direction.WestToEast;
+                }
+                // neither lat nor lon are equal, look at the slope
+                decimal dx = this.p2.X - this.p1.X;
+                decimal dy = this.p2.Y - this.p1.Y;
+                if (SafeGreaterThan((dy / dx), 0))
+                {
+                    if (SafeGreaterThan(dy, 0))
+                    {
+                        // going from southwest to northeast, water is on southeast
+                        return Direction.SWToNE;
+                    }
+                    // going from northeast to southwest, water is on northwest
+                    return Direction.NEToSW;
+                }
+                // at this point slope < 0. should never be 0 because lat's can't equal by this point
+                if (SafeGreaterThan(dy, 0))
+                {
+                    // going from southeast to northwest, water is on northeast
+                    return Direction.SEToNW;
+                }
+
+                // going from northwest to southeast, water is on southwest
+                return Direction.NWToSE;
+            }
         }
 
         // returns point of intersection, null if no intersection
@@ -216,7 +303,7 @@ namespace AutomaticWaterMasking
                 Edge thisEdge = new Edge(this[i], this[i + 1]);
                 Edge checkEdge = null;
 
-                bool addedIntersectionToThis = false;
+                int intersectionsAddedToThis = 0;
                 for (int j = 0; j < check.Count - 1; j++)
                 {
                     checkEdge = new Edge(check[j], check[j + 1]);
@@ -226,19 +313,19 @@ namespace AutomaticWaterMasking
                         intersections.Add(intersection);
                         if (insertIntersectionIntoWay)
                         {
-                            this.Insert(i + 1, (T)intersection);
-                            addedIntersectionToThis = true;
+                            this.InsertPointAtIndex(intersection, i + 1);
+                            intersectionsAddedToThis++;
                         }
                         if (insertIntersectionIntoComparisonWay)
                         {
-                            check.Insert(j + 1, (T)intersection);
+                            check.InsertPointAtIndex(intersection, j + 1);
                             j++;
                         }
                     }
                 }
-                if (addedIntersectionToThis)
+                if (intersectionsAddedToThis > 0)
                 {
-                    i++;
+                    i += intersectionsAddedToThis;
                 }
             }
 
@@ -700,14 +787,8 @@ namespace AutomaticWaterMasking
                     int idx = way.IndexOf(intersections[0]);
                     Way<Point> polygon = new Way<Point>();
                     Way<Point> curWay = way;
-                    Point curPoint = curWay[idx];
-                    polygon.Add(curPoint);
-                    intersections.Remove(curPoint);
-                    idx++;
+                    Point curPoint = null;
 
-                    curPoint = curWay[idx];
-                    polygon.Add(curPoint);
-                    idx++;
                     bool followViewPort = true;
                     while (polygon.Count < 4 || !polygon.IsClosedWay())
                     {
