@@ -116,6 +116,11 @@ namespace AutomaticWaterMasking
 
         public bool IsClosedWay()
         {
+            if (this.Count < 4)
+            {
+                return false;
+            }
+
             Point firstCoord = this[0];
             Point lastCoord = this[this.Count - 1];
 
@@ -790,7 +795,7 @@ namespace AutomaticWaterMasking
                     Point curPoint = null;
 
                     bool followViewPort = true;
-                    while (polygon.Count < 4 || !polygon.IsClosedWay())
+                    while (!polygon.IsClosedWay())
                     {
                         curPoint = curWay[idx];
                         if (intersections.Contains(curPoint))
