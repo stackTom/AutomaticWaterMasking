@@ -805,7 +805,7 @@ namespace AutomaticWaterMasking
             return true;
         }
 
-        private static List<Way<Point>> TryToBuildPolygons(Dictionary<Point, List<Way<Point>>> pointToWays, ref Way<Point> startingWay, Way<Point> viewPort, ref int startingIdx, ref bool followViewPort, List<Point> intersections)
+        private static List<Way<Point>> TryToBuildPolygons(Dictionary<Point, List<Way<Point>>> pointToWays, ref Way<Point> startingWay, ref Way<Point> viewPort, ref int startingIdx, ref bool followViewPort, List<Point> intersections)
         {
             List<Way<Point>> polygons = new List<Way<Point>>();
             Way<Point> polygon = null;
@@ -813,25 +813,31 @@ namespace AutomaticWaterMasking
             polygon = new Way<Point>();
             Way<Point> curWay = startingWay;
             Point curPoint = null;
-            // use original viewPort to see whether waysContaining point contains the original viewPort (since doing a custom hash of a Way by polygons would be expensive)
-            // use this tempViewPort for actually tracing the path, as it will have it's edges removed as more polygons are created. This allows incorrect path's from
-            // being formed using points which have already been formed into polygons.
-            Way<Point> tempViewPort = new Way<Point>(viewPort);
+
             while (intersections.Count > 0)
             {
+                Console.WriteLine(intersections.Count);
+                List<Point> intersectionsRemoved = new List<Point>();
                 while (!polygon.IsClosedWay())
                 {
                     curPoint = curWay[idx];
-                    if (!PointInViewport(curPoint, tempViewPort))
+                    // backtrack
+                    if (!PointInViewport(curPoint, viewPort))
                     {
                         startingIdx = idx - 1;
                         startingWay = curWay;
                         followViewPort = true;
+                        // reset, as we might need them since we didn't form a valid polygon
+                        foreach (Point p in intersectionsRemoved)
+                        {
+                            intersections.Add(p);
+                        }
                         return null;
                     }
                     if (intersections.Contains(curPoint))
                     {
                         intersections.Remove(curPoint);
+                        intersectionsRemoved.Add(curPoint);
                     }
                     polygon.Add(curPoint);
                     List<Way<Point>> waysContainingPoint = pointToWays[curPoint];
@@ -847,7 +853,7 @@ namespace AutomaticWaterMasking
                     {
                         if (followViewPort)
                         {
-                            curWay = tempViewPort;
+                            curWay = viewPort;
                         }
                         else
                         {
@@ -880,13 +886,13 @@ namespace AutomaticWaterMasking
                 polygons.Add(polygon);
                 foreach (Point p in polygon)
                 {
-                    tempViewPort.Remove(p);
+                    viewPort.Remove(p);
                 }
 
                 if (intersections.Count > 0)
                 {
                     // reset to make sure all remaining intersections are built into polygons
-                    curWay = tempViewPort;
+                    curWay = viewPort;
                     idx = curWay.IndexOf(intersections[0]);
                     polygon = new Way<Point>();
                     followViewPort = true;
@@ -899,7 +905,7 @@ namespace AutomaticWaterMasking
         private static List<Way<Point>> CoastWaysToPolygon(Dictionary<string, Way<Point>> coastWays, Way<Point> viewPort)
         {
             List<Way<Point>> polygons = new List<Way<Point>>();
-            Dictionary<string, List<Point>> wayIDstoIntersections = new Dictionary<string, List<Point>>();
+            List<Point> allIntersections = new List<Point>();
             Dictionary<Point, List<Way<Point>>> pointToWays = new Dictionary<Point, List<Way<Point>>>();
 
             int j = 0;
@@ -907,7 +913,10 @@ namespace AutomaticWaterMasking
             {
                 Way<Point> way = kv.Value;
                 List<Point> intersections = way.IntersectsWith(viewPort, true, true);
-                wayIDstoIntersections.Add(kv.Key, intersections);
+                foreach (Point p in intersections)
+                {
+                    allIntersections.Add(p);
+                }
                 PopulatePointToWaysDict(pointToWays, way);
 
                 string s = way.ToOSMXML();
@@ -920,32 +929,27 @@ namespace AutomaticWaterMasking
             int startingIdx = 0;
             Way<Point> startingWay = viewPort;
             bool followViewPort = false;
-            foreach (KeyValuePair<string, List<Point>> kv in wayIDstoIntersections)
+
+            while (keepTrying)
             {
-                while (keepTrying)
+                keepTrying = false;
+                List<Way<Point>> newPolys = TryToBuildPolygons(pointToWays, ref startingWay, ref viewPort, ref startingIdx, ref followViewPort, allIntersections); // copy of intersections in case we need to start again
+                if (newPolys != null)
                 {
-                    keepTrying = false;
-                    string wayID = kv.Key;
-                    Way<Point> way = coastWays[wayID];
-                    List<Point> intersections = kv.Value;
-                    List<Way<Point>> newPolys = TryToBuildPolygons(pointToWays, ref startingWay, viewPort, ref startingIdx, ref followViewPort, new List<Point>(intersections)); // copy of intersections in case we need to start again
-                    if (newPolys != null)
+                    foreach (Way<Point> w in newPolys)
                     {
-                        foreach (Way<Point> w in newPolys)
-                        {
-                            polygons.Add(w);
-                        }
-                    }
-                    else
-                    {
-                        keepTrying = true;
+                        polygons.Add(w);
                     }
                 }
-                // reset for next round
-                keepTrying = true;
-                startingWay = viewPort;
-                startingIdx = 0;
+                else
+                {
+                    keepTrying = true;
+                }
             }
+            // reset for next round
+            keepTrying = true;
+            startingWay = viewPort;
+            startingIdx = 0;
 
             return polygons;
         }
