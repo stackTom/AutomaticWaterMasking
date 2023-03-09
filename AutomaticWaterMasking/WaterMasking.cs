@@ -816,14 +816,13 @@ namespace AutomaticWaterMasking
 
             while (intersections.Count > 0)
             {
-                Console.WriteLine(intersections.Count);
                 List<Point> intersectionsRemoved = new List<Point>();
                 while (!polygon.IsClosedWay())
                 {
                     curPoint = curWay[idx];
-                    // backtrack
                     if (!PointInViewport(curPoint, viewPort))
                     {
+                        // backtrack
                         startingIdx = idx - 1;
                         startingWay = curWay;
                         followViewPort = true;
@@ -871,7 +870,7 @@ namespace AutomaticWaterMasking
                     }
                     else
                     {
-                        // choose the other way that is not the viewPort
+                        // choose the only way that we can
                         curWay = waysContainingPoint[0];
                     }
                     idx = curWay.IndexOf(curPoint);
@@ -1019,30 +1018,21 @@ namespace AutomaticWaterMasking
             return polygons;
         }
 
-        public struct tXYCoord
+        public static Point LatLongToPixel(Point latLong, decimal startLat, decimal startLong, decimal pixelsPerLongitude, decimal pixelsPerLatitude)
         {
-            public decimal mX;
-            public decimal mY;
-        }
-
-        public static tXYCoord ConvertXYLatLongToPixel(tXYCoord iXYCoord, decimal startLat, decimal startLong, decimal vPixelPerLongitude, decimal vPixelPerLatitude)
-        {
-            tXYCoord vPixelXYCoord;
-
-            vPixelXYCoord.mX = vPixelPerLongitude * (iXYCoord.mX - startLong);
-            vPixelXYCoord.mY = -vPixelPerLatitude * (startLat - iXYCoord.mY);
+            Point vPixelXYCoord = new Point(pixelsPerLongitude * (latLong.X - startLong), pixelsPerLatitude * (startLat - latLong.Y));
 
             return vPixelXYCoord;
         }
-        public static tXYCoord CoordToPixel(decimal lat, decimal longi, decimal mAreaNWCornerLatitude, decimal mAreaNWCornerLongitude, decimal vPixelPerLongitude,
-                                    decimal vPixelPerLatitude)
+
+
+        public static Point CoordToPixel(decimal lat, decimal lon, decimal NWLat, decimal NWLon, decimal pixelsPerLongitude,
+                                    decimal pixelsPerLatitude)
         {
-            tXYCoord tempCoord;
-            tempCoord.mX = longi;
-            tempCoord.mY = lat;
-            tXYCoord pixel = ConvertXYLatLongToPixel(tempCoord, mAreaNWCornerLatitude, mAreaNWCornerLongitude, vPixelPerLongitude, vPixelPerLatitude);
-            pixel.mX -= 0.5m;
-            pixel.mY -= 0.5m;
+            Point tempCoord = new Point(lon, lat);
+            Point pixel = LatLongToPixel(tempCoord, NWLat, NWLon, pixelsPerLongitude, pixelsPerLatitude);
+            pixel.X -= 0.5m;
+            pixel.Y -= 0.5m;
 
             return pixel;
         }
@@ -1050,7 +1040,7 @@ namespace AutomaticWaterMasking
         public static Bitmap GetMask(string outPath, int width, int height, Point NW, Point SE, List<Way<Point>> polygons)
         {
             Bitmap bmp = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
-            decimal pixelsPerLon = -Convert.ToDecimal(width) / (NW.X - SE.X);
+            decimal pixelsPerLon = Convert.ToDecimal(width) / (SE.X - NW.X);
             decimal pixelsPerLat = Convert.ToDecimal(height) / (NW.Y - SE.Y);
 
             using (Graphics g = Graphics.FromImage(bmp))
@@ -1061,11 +1051,12 @@ namespace AutomaticWaterMasking
                 {
 
                     List<PointF> l = new List<PointF>();
-                    foreach (Point p in way)
+                    for (int i = 0; i < way.Count - 1; i++) // FillPolygon polygons don't need last point, hence - 1
                     {
-                        tXYCoord pixel = CoordToPixel(p.Y, p.X, NW.Y, NW.X, pixelsPerLon, pixelsPerLat);
+                        Point p = way[i];
+                        Point pixel = CoordToPixel(p.Y, p.X, NW.Y, NW.X, pixelsPerLon, pixelsPerLat);
 
-                        l.Add(new PointF((float)pixel.mX, (float)pixel.mY));
+                        l.Add(new PointF((float)pixel.X, (float)pixel.Y));
                     }
                     PointF[] pf = l.ToArray();
                     g.FillPolygon(b, pf);

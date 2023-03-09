@@ -16,7 +16,7 @@ namespace AutomaticWaterMaskingTest
             string viewPortXML = File.ReadAllText(outPath + @"\viewport.osm");
             Way<AutomaticWaterMasking.Point> viewPort = new List<Way<AutomaticWaterMasking.Point>>(AreaKMLFromOSMDataCreator.GetWays(viewPortXML, true).Values)[0];
 
-            List<Way<AutomaticWaterMasking.Point>> polygons = WaterMasking.CreatePolygons(coastXML, waterXML, viewPort);
+            List<Way<AutomaticWaterMasking.Point>> polygons = WaterMasking.CreatePolygons(coastXML, waterXML, new Way<AutomaticWaterMasking.Point>(viewPort));
             int i = 0;
             foreach (Way<AutomaticWaterMasking.Point> way in polygons)
             {
@@ -24,9 +24,8 @@ namespace AutomaticWaterMaskingTest
                 File.WriteAllText(@"C:\Users\fery2\Desktop\WAY" + i.ToString() + ".osm", s);
                 i++;
             }
-            return;
-            Bitmap bmp = WaterMasking.GetMask(outPath, 4096, 4096, new AutomaticWaterMasking.Point(26.1075555555556m, -80.1195222222222m), new AutomaticWaterMasking.Point(26.1076277777778m, -80.1238138888889m), polygons);
-            bmp.Save(outPath + @"\img.bmp");
+            Bitmap bmp = WaterMasking.GetMask(outPath, 4096, 4096, viewPort[0], viewPort[2], polygons);
+            bmp.Save(outPath + @"\img.bmp", System.Drawing.Imaging.ImageFormat.Bmp);
         }
     }
 }
