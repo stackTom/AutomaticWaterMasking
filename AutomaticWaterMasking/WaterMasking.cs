@@ -893,7 +893,16 @@ namespace AutomaticWaterMasking
                 {
                     // reset to make sure all remaining intersections are built into polygons
                     curWay = viewPort;
-                    idx = curWay.IndexOf(intersections[0]);
+                    idx = 0;
+                    // start at 0, or the first intersection, if there is one. Always starting at 0 can lead to cycles forming (endless loop)
+                    for (int i = 0; i < viewPort.Count; i++)
+                    {
+                        if (intersections.Contains(viewPort[i]))
+                        {
+                            idx = i;
+                            break;
+                        }
+                    }
                     polygon = new Way<Point>();
                     followViewPort = true;
                 }
