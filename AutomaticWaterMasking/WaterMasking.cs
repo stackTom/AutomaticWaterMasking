@@ -813,6 +813,7 @@ namespace AutomaticWaterMasking
             polygon = new Way<Point>();
             Way<Point> curWay = startingWay;
             Point curPoint = null;
+            Way<Point> origViewPort = new Way<Point>(viewPort);
 
             while (intersections.Count > 0)
             {
@@ -820,10 +821,14 @@ namespace AutomaticWaterMasking
                 while (!polygon.IsClosedWay())
                 {
                     curPoint = curWay[idx];
-                    if (!PointInViewport(curPoint, viewPort))
+                    if (!PointInViewport(curPoint, origViewPort)) // origViewPort because otherwise, get weird, concave shapes as points removed from viewPort
                     {
                         // backtrack
                         startingIdx = idx - 1;
+                        if (startingIdx == -1)
+                        {
+                            startingIdx = curWay.Count - 1;
+                        }
                         startingWay = curWay;
                         followViewPort = true;
                         // reset, as we might need them since we didn't form a valid polygon
@@ -921,6 +926,10 @@ namespace AutomaticWaterMasking
             {
                 Way<Point> way = kv.Value;
                 List<Point> intersections = way.IntersectsWith(viewPort, true, true);
+                if (intersections == null)
+                {
+                    continue;
+                }
                 foreach (Point p in intersections)
                 {
                     allIntersections.Add(p);
@@ -966,7 +975,7 @@ namespace AutomaticWaterMasking
         {
             Dictionary<string, Way<Point>> coastWays = AreaKMLFromOSMDataCreator.GetWays(coastXML, true);
             Dictionary<string, Way<Point>> waterWays = AreaKMLFromOSMDataCreator.GetWays(waterXML, true);
-            MergeCoastLines(coastWays);
+            //MergeCoastLines(coastWays);
             List<Way<Point>> polygons = new List<Way<Point>>();
 
             foreach (KeyValuePair<string, Way<Point>> kv in waterWays)
