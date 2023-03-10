@@ -909,8 +909,8 @@ namespace AutomaticWaterMasking
                 PopulatePointToWaysDict(pointToWays, way);
 
                 string s = way.ToOSMXML();
-                File.WriteAllText(@"C:\Users\fery2\Desktop\MODIFIEDWAY" + j.ToString() + ".osm", s);
-                File.WriteAllText(@"C:\Users\fery2\Desktop\MODIFIEDVIEWPORT.osm", viewPort.ToOSMXML());
+                File.WriteAllText(@"C:\Users\fery2\Desktop\TEMP\MODIFIEDWAY" + j.ToString() + ".osm", s);
+                File.WriteAllText(@"C:\Users\fery2\Desktop\TEMP\MODIFIEDVIEWPORT.osm", viewPort.ToOSMXML());
                 j++;
             }
             Way<Point> viewPortWithoutLastPoint = new Way<Point>(viewPort);
@@ -921,6 +921,7 @@ namespace AutomaticWaterMasking
             Way<Point> startingWay = viewPort;
             bool followViewPort = false;
 
+            int numRetries = 0;
             while (keepTrying)
             {
                 keepTrying = false;
@@ -934,7 +935,14 @@ namespace AutomaticWaterMasking
                 }
                 else
                 {
+                    numRetries++;
                     keepTrying = true;
+                }
+
+                if (numRetries > 100000)
+                {
+                    Console.WriteLine("Failed building polygons, there is likely something wrong with the data");
+                    return null;
                 }
             }
             // reset for next round
@@ -973,8 +981,23 @@ namespace AutomaticWaterMasking
             foreach (Way<Point> way in mergedCoasts)
             {
                 string s = way.ToOSMXML();
-                File.WriteAllText(@"C:\Users\fery2\Desktop\MERGEDCOAST" + way.wayID.ToString() + ".osm", s);
+                File.WriteAllText(@"C:\Users\fery2\Desktop\TEMP\MERGEDCOAST" + way.wayID.ToString() + ".osm", s);
                 i++;
+            }
+
+            List<Way<Point>> coastPolygons = CoastWaysToPolygon(mergedCoasts, viewPort);
+            // add the coast polygons of coast ways which intersect with the view port
+            foreach (Way<Point> way in coastPolygons)
+            {
+                polygons.Add(way);
+            }
+            // now add the circular coasts, which either were already full polygons in OSM data, or became one during merging
+            foreach (Way<Point> way in mergedCoasts)
+            {
+                if (way.IsClosedWay())
+                {
+                    polygons.Add(way);
+                }
             }
 
             foreach (KeyValuePair<string, Way<Point>> kv in waterWays)
@@ -982,11 +1005,6 @@ namespace AutomaticWaterMasking
                 polygons.Add(kv.Value);
             }
 
-            List<Way<Point>> coastPolygons = CoastWaysToPolygon(mergedCoasts, viewPort);
-            foreach (Way<Point> way in coastPolygons)
-            {
-                polygons.Add(way);
-            }
 
             return polygons;
         }
