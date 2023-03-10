@@ -29,16 +29,17 @@ namespace AutomaticWaterMasking
                    X == pair.X &&
                    Y == pair.Y;
         }
+
+        public override int GetHashCode()
+        {
+            return this.ToString().GetHashCode();
+        }
     }
 
     public class Point : XYPair
     {
         public Point(decimal x, decimal y) : base(x, y) { }
 
-        public override int GetHashCode()
-        {
-            return this.ToString().GetHashCode();
-        }
     }
 
     public class Way<T> : System.Collections.Generic.List<T> where T : Point
@@ -451,9 +452,9 @@ namespace AutomaticWaterMasking
             return wayIDsToways;
         }
 
-        private static List<string> GetWaysInThisMultipolygonAndUpdateRelations(XmlElement rel, Dictionary<string, string> wayIDsToRelation, Dictionary<string, string> wayIDsToType)
+        private static List<Way<Point>> GetWaysInThisMultipolygonAndUpdateRelations(Dictionary<string, Way<Point>> wayIDsToWays, XmlElement rel, Dictionary<string, string> wayIDsToRelation, Dictionary<string, string> wayIDsToType)
         {
-            List<string> waysInThisMultipolygon = new List<string>();
+            List<Way<Point>> waysInThisMultipolygon = new List<Way<Point>>();
             string type = null;
             foreach (XmlElement tag in rel.GetElementsByTagName("tag"))
             {
@@ -470,7 +471,7 @@ namespace AutomaticWaterMasking
                     foreach (XmlElement member in rel.GetElementsByTagName("member"))
                     {
                         string wayID = member.GetAttribute("ref");
-                        waysInThisMultipolygon.Add(wayID);
+                        waysInThisMultipolygon.Add(wayIDsToWays[wayID]);
                         string role = member.GetAttribute("role");
                         string curRole = null;
                         wayIDsToRelation.TryGetValue(wayID, out curRole);
@@ -498,9 +499,8 @@ namespace AutomaticWaterMasking
             return waysInThisMultipolygon;
         }
 
-        public static void MergeMultipolygonWays(List<string> waysInThisMultipolygon, Dictionary<string, Way<Point>> wayIDsToWays, string relationID, HashSet<Way<Point>> toDelete, HashSet<Way<Point>> toAdd)
+        public static void MergeMultipolygonWays(List<Way<Point>> waysInThisMultipolygon)
         {
-            Dictionary<string, Way<Point>> waysCopy = new Dictionary<string, Way<Point>>(wayIDsToWays);
             HashSet<Way<Point>> merged = new HashSet<Way<Point>>();
             bool mergeFound = false;
             do
@@ -513,41 +513,16 @@ namespace AutomaticWaterMasking
                         // i != j makes sure not comparing to the same way
                         if (i != j)
                         {
-                            string way1id = waysInThisMultipolygon[i];
-                            string way2id = waysInThisMultipolygon[j];
-                            // make sure the way hasn't been removed due to being combined previously...
-                            if (!waysCopy.ContainsKey(way1id) || !waysCopy.ContainsKey(way2id))
-                            {
-                                continue;
-                            }
-                            Way<Point> way1 = waysCopy[way1id];
-                            Way<Point> way2 = waysCopy[way2id];
+                            Way<Point> way1 = waysInThisMultipolygon[i];
+                            Way<Point> way2 = waysInThisMultipolygon[j];
 
                             Way<Point> mergedWay = way1.MergePointToPoint(way2);
                             if (mergedWay != null)
                             {
-                                mergedWay.wayID = way1id;
-                                waysCopy[way1id] = mergedWay;
-                                waysCopy.Remove(way2id);
-                                if (!merged.Contains(mergedWay))
-                                {
-                                    merged.Add(mergedWay);
-                                }
-                                else
-                                {
-                                    merged.Remove(mergedWay);
-                                    merged.Add(mergedWay);
-                                }
-
-                                if (!toDelete.Contains(way1))
-                                {
-                                    toDelete.Add(way1);
-                                }
-
-                                if (!toDelete.Contains(way2))
-                                {
-                                    toDelete.Add(way2);
-                                }
+                                mergedWay.wayID = way1.wayID;
+                                waysInThisMultipolygon.Add(mergedWay);
+                                waysInThisMultipolygon.Remove(way1);
+                                waysInThisMultipolygon.Remove(way2);
                                 mergeFound = true;
                                 break;
                             }
@@ -555,14 +530,6 @@ namespace AutomaticWaterMasking
                     }
                 }
             } while (mergeFound);
-
-            foreach (Way<Point> w in merged)
-            {
-                if (!toAdd.Contains(w))
-                {
-                    toAdd.Add(w);
-                }
-            }
         }
 
         public static Dictionary<string, Way<Point>> GetWays(string OSMKML, bool mergeMultipolygons)
@@ -587,7 +554,7 @@ namespace AutomaticWaterMasking
                 // it is hard to determine direction the water is in relative to the way because I believe OSM only requires direction
                 // for coastal ways. but if we make them a full polygon, then it is easy to determine that the water is inside the polygon
                 // here we compare every way to every other way.
-                List<string> waysInThisMultipolygon = GetWaysInThisMultipolygonAndUpdateRelations(rel, wayIDsToRelation, wayIDsToType);
+                List<Way<Point>> waysInThisMultipolygon = GetWaysInThisMultipolygonAndUpdateRelations(wayIDsToWays, rel, wayIDsToRelation, wayIDsToType);
                 string relationID = rel.GetAttribute("id");
                 // update relations
                 foreach (KeyValuePair<string, Way<Point>> kv in wayIDsToWays)
@@ -605,18 +572,17 @@ namespace AutomaticWaterMasking
 
                 if (mergeMultipolygons)
                 {
-                    MergeMultipolygonWays(waysInThisMultipolygon, wayIDsToWays, relationID, toDelete, toAdd);
+                    // remove all the ones in the multipolygon and only re add them after they have been merged
+                    foreach (Way<Point> way in waysInThisMultipolygon)
+                    {
+                        wayIDsToWays.Remove(way.wayID);
+                    }
+                    MergeMultipolygonWays(waysInThisMultipolygon);
+                    foreach (Way<Point> way in waysInThisMultipolygon)
+                    {
+                        wayIDsToWays.Add(way.wayID, way);
+                    }
                 }
-            }
-
-            foreach (Way<Point> way in toDelete)
-            {
-                wayIDsToWays.Remove(way.wayID);
-            }
-
-            foreach (Way<Point> way in toAdd)
-            {
-                wayIDsToWays.Add(way.wayID, way);
             }
 
             return wayIDsToWays;
@@ -984,7 +950,7 @@ namespace AutomaticWaterMasking
         {
             Dictionary<string, Way<Point>> coastWays = AreaKMLFromOSMDataCreator.GetWays(coastXML, true);
             Dictionary<string, Way<Point>> waterWays = AreaKMLFromOSMDataCreator.GetWays(waterXML, true);
-            // remove any that have length 0 (can get when edit with JOSM)(
+            // remove any that have length 0 (can get when edit with JOSM)
             foreach (string wayID in coastWays.Keys.ToArray())
             {
                 Way<Point> way = coastWays[wayID];
@@ -1002,13 +968,13 @@ namespace AutomaticWaterMasking
                 }
             }
 
-            MergeCoastLines(coastWays);
+            List<Way<Point>> mergedCoasts = MergeCoastLines(coastWays);
             List<Way<Point>> polygons = new List<Way<Point>>();
             int i = 0;
-            foreach (KeyValuePair<string, Way<Point>> kv in coastWays)
+            foreach (Way<Point> way in mergedCoasts)
             {
-                string s = kv.Value.ToOSMXML();
-                File.WriteAllText(@"C:\Users\fery2\Desktop\MERGEDCOAST" + i.ToString() + ".osm", s);
+                string s = way.ToOSMXML();
+                File.WriteAllText(@"C:\Users\fery2\Desktop\MERGEDCOAST" + way.wayID.ToString() + ".osm", s);
                 i++;
             }
 
@@ -1026,23 +992,20 @@ namespace AutomaticWaterMasking
             return polygons;
         }
 
-        // TODO: the way I merge lines that aren't part of a multipolygon is a hack. FIXME
-        private static void MergeCoastLines(Dictionary<string, Way<Point>> coastWays)
+        private static List<Way<Point>> MergeCoastLines(Dictionary<string, Way<Point>> coastWays)
         {
-            List<string> mergeMe = new List<string>(coastWays.Keys);
-            HashSet<Way<Point>> toAdd = new HashSet<Way<Point>>();
-            HashSet<Way<Point>> toDelete = new HashSet<Way<Point>>();
-            AreaKMLFromOSMDataCreator.MergeMultipolygonWays(mergeMe, coastWays, null, toDelete, toAdd);
-
-            foreach (Way<Point> way in toDelete)
+            List<Way<Point>> toMerge = new List<Way<Point>>();
+            foreach (KeyValuePair<string, Way<Point>> kv in coastWays)
             {
-                coastWays.Remove(way.wayID);
+                Way<Point> way = kv.Value;
+                if (!way.IsClosedWay())
+                {
+                    toMerge.Add(way);
+                }
             }
+            AreaKMLFromOSMDataCreator.MergeMultipolygonWays(toMerge);
 
-            foreach (Way<Point> way in toAdd)
-            {
-                coastWays.Add(way.wayID, way);
-            }
+            return toMerge;
         }
 
         public static List<Way<Point>> GetPolygons(DownloadArea d, string saveLoc)
