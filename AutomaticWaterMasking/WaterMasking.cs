@@ -96,10 +96,9 @@ namespace AutomaticWaterMasking
             }
             else if (w1p1.Equals(w2p2))
             {
-                newWay.Reverse();
                 for (int w2 = way.Count - 2; w2 >= 0; w2--)
                 {
-                    newWay.Add(way[w2]);
+                    newWay.Insert(0, way[w2]);
                 }
                 merged = true;
             }
