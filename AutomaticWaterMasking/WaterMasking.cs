@@ -949,7 +949,9 @@ namespace AutomaticWaterMasking
                 File.WriteAllText(@"C:\Users\fery2\Desktop\MODIFIEDVIEWPORT.osm", viewPort.ToOSMXML());
                 j++;
             }
-            PopulatePointToWaysDict(pointToWays, viewPort);
+            Way<Point> viewPortWithoutLastPoint = new Way<Point>(viewPort);
+            viewPortWithoutLastPoint.RemoveAt(viewPort.Count - 1);
+            PopulatePointToWaysDict(pointToWays, viewPortWithoutLastPoint);
             bool keepTrying = true;
             int startingIdx = 0;
             Way<Point> startingWay = viewPort;
