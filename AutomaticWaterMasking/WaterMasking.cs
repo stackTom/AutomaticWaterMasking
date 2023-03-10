@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Xml;
+using System.Linq;
 
 namespace AutomaticWaterMasking
 {
@@ -20,6 +21,13 @@ namespace AutomaticWaterMasking
         public override string ToString()
         {
             return this.Y + ", " + this.X;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is XYPair pair &&
+                   X == pair.X &&
+                   Y == pair.Y;
         }
     }
 
@@ -975,8 +983,33 @@ namespace AutomaticWaterMasking
         {
             Dictionary<string, Way<Point>> coastWays = AreaKMLFromOSMDataCreator.GetWays(coastXML, true);
             Dictionary<string, Way<Point>> waterWays = AreaKMLFromOSMDataCreator.GetWays(waterXML, true);
-            //MergeCoastLines(coastWays);
+            // remove any that have length 0 (can get when edit with JOSM)(
+            foreach (string wayID in coastWays.Keys.ToArray())
+            {
+                Way<Point> way = coastWays[wayID];
+                if (way.Count == 0)
+                {
+                    coastWays.Remove(wayID);
+                }
+            }
+            foreach (string wayID in waterWays.Keys.ToArray())
+            {
+                Way<Point> way = waterWays[wayID];
+                if (way.Count == 0)
+                {
+                    waterWays.Remove(wayID);
+                }
+            }
+
+            MergeCoastLines(coastWays);
             List<Way<Point>> polygons = new List<Way<Point>>();
+            int i = 0;
+            foreach (KeyValuePair<string, Way<Point>> kv in coastWays)
+            {
+                string s = kv.Value.ToOSMXML();
+                File.WriteAllText(@"C:\Users\fery2\Desktop\MERGEDCOAST" + i.ToString() + ".osm", s);
+                i++;
+            }
 
             foreach (KeyValuePair<string, Way<Point>> kv in waterWays)
             {
