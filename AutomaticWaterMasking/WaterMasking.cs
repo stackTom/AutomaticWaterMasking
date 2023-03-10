@@ -888,16 +888,15 @@ namespace AutomaticWaterMasking
             return polygons;
         }
 
-        private static List<Way<Point>> CoastWaysToPolygon(Dictionary<string, Way<Point>> coastWays, Way<Point> viewPort)
+        private static List<Way<Point>> CoastWaysToPolygon(List<Way<Point>> coastWays, Way<Point> viewPort)
         {
             List<Way<Point>> polygons = new List<Way<Point>>();
             List<Point> allIntersections = new List<Point>();
             Dictionary<Point, List<Way<Point>>> pointToWays = new Dictionary<Point, List<Way<Point>>>();
 
             int j = 0;
-            foreach (KeyValuePair<string, Way<Point>> kv in coastWays)
+            foreach (Way<Point> way in coastWays)
             {
-                Way<Point> way = kv.Value;
                 List<Point> intersections = way.IntersectsWith(viewPort, true, true);
                 if (intersections == null)
                 {
@@ -983,7 +982,7 @@ namespace AutomaticWaterMasking
                 polygons.Add(kv.Value);
             }
 
-            List<Way<Point>> coastPolygons = CoastWaysToPolygon(coastWays, viewPort);
+            List<Way<Point>> coastPolygons = CoastWaysToPolygon(mergedCoasts, viewPort);
             foreach (Way<Point> way in coastPolygons)
             {
                 polygons.Add(way);
@@ -994,15 +993,7 @@ namespace AutomaticWaterMasking
 
         private static List<Way<Point>> MergeCoastLines(Dictionary<string, Way<Point>> coastWays)
         {
-            List<Way<Point>> toMerge = new List<Way<Point>>();
-            foreach (KeyValuePair<string, Way<Point>> kv in coastWays)
-            {
-                Way<Point> way = kv.Value;
-                if (!way.IsClosedWay())
-                {
-                    toMerge.Add(way);
-                }
-            }
+            List<Way<Point>> toMerge = new List<Way<Point>>(coastWays.Values.ToArray());
             AreaKMLFromOSMDataCreator.MergeMultipolygonWays(toMerge);
 
             return toMerge;
