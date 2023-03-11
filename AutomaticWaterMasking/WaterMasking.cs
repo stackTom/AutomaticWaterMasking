@@ -951,7 +951,7 @@ namespace AutomaticWaterMasking
 
         static decimal MASK_LIKE_COAST_LIMIT = 0.002m;
 
-        public static void CreatePolygons(List<Way<Point>> waterPolygons, List<Way<Point>> inlandPolygons, string coastXML, string waterXML, Way<Point> viewPort)
+        public static void CreatePolygons(List<Way<Point>> coastWaterPolygons, List<Way<Point>> inlandPolygons, List<Way<Point>> inlandWater, string coastXML, string waterXML, Way<Point> viewPort)
         {
             Dictionary<string, Way<Point>> coastWays = AreaKMLFromOSMDataCreator.GetWays(coastXML, true);
             Dictionary<string, Way<Point>> waterWays = AreaKMLFromOSMDataCreator.GetWays(waterXML, true);
@@ -980,6 +980,11 @@ namespace AutomaticWaterMasking
                         // if relation is inner, this way is part of a multipolygon and it's describing land, so it's like a coast
                         waterWays.Remove(way.wayID);
                         coastWays.Add(way.wayID, way);
+                    }
+                    else if (way.relation == null)
+                    {
+                        waterWays.Remove(way.wayID);
+                        inlandWater.Add(way);
                     }
                     decimal area = Math.Abs(way.Take(way.Count - 1)
                            .Select((p, i) => (way[i + 1].X - p.X) * (way[i + 1].Y + p.Y))
@@ -1011,7 +1016,7 @@ namespace AutomaticWaterMasking
             // add the water polygons of coast ways which intersect with the view port
             foreach (Way<Point> way in mergedWaterPolys)
             {
-                waterPolygons.Add(way);
+                coastWaterPolygons.Add(way);
             }
             // now add the circular coasts, which either were already full polygons in OSM data, or became one during merging
             foreach (Way<Point> way in mergedCoasts)
@@ -1039,7 +1044,7 @@ namespace AutomaticWaterMasking
             return toMerge;
         }
 
-        public static void GetPolygons(List<Way<Point>> waterPolygons, List<Way<Point>> inlandPolygons, DownloadArea d, string saveLoc)
+        public static void GetPolygons(List<Way<Point>> coastWaterPolygons, List<Way<Point>> inlandPolygons, List<Way<Point>> inlandWater, DownloadArea d, string saveLoc)
         {
             string coastXML = DownloadOsmCoastData(d, saveLoc + @"\coast.osm");
             string waterXML = DownloadOsmWaterData(d, saveLoc + @"\water.osm");
@@ -1050,7 +1055,7 @@ namespace AutomaticWaterMasking
             viewPort.Add(new Point(d.startLon, d.endLat));
             viewPort.Add(new Point(d.startLon, d.startLat));
 
-            CreatePolygons(waterPolygons, inlandPolygons, coastXML, waterXML, viewPort);
+            CreatePolygons(coastWaterPolygons, inlandPolygons, inlandWater, coastXML, waterXML, viewPort);
         }
 
         public static Point LatLongToPixel(Point latLong, decimal startLat, decimal startLong, decimal pixelsPerLongitude, decimal pixelsPerLatitude)
@@ -1091,7 +1096,7 @@ namespace AutomaticWaterMasking
             }
         }
 
-        public static Bitmap GetMask(string outPath, int width, int height, Point NW, Point SE, List<Way<Point>> waterPolygons, List<Way<Point>> inlandPolygons)
+        public static Bitmap GetMask(string outPath, int width, int height, Point NW, Point SE, List<Way<Point>> waterPolygons, List<Way<Point>> inlandPolygons, List<Way<Point>> inlandWater)
         {
             Bitmap bmp = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
             decimal pixelsPerLon = Convert.ToDecimal(width) / (SE.X - NW.X);
@@ -1099,11 +1104,13 @@ namespace AutomaticWaterMasking
 
             using (Graphics g = Graphics.FromImage(bmp))
             {
-                SolidBrush b = new SolidBrush(Color.Black);
                 g.FillRectangle(Brushes.White, 0, 0, bmp.Width, bmp.Height);
+                SolidBrush b = new SolidBrush(Color.Black);
                 DrawPolygons(bmp, g, b, pixelsPerLon, pixelsPerLat, NW, waterPolygons);
                 b = new SolidBrush(Color.White);
                 DrawPolygons(bmp, g, b, pixelsPerLon, pixelsPerLat, NW, inlandPolygons);
+                b = new SolidBrush(Color.Black);
+                DrawPolygons(bmp, g, b, pixelsPerLon, pixelsPerLat, NW, inlandWater);
             }
 
             return bmp;
