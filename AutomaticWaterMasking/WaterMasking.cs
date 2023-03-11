@@ -908,11 +908,11 @@ namespace AutomaticWaterMasking
                 }
                 PopulatePointToWaysDict(pointToWays, way);
 
-                string s = way.ToOSMXML();
+/*                string s = way.ToOSMXML();
                 File.WriteAllText(@"C:\Users\fery2\Desktop\TEMP\MODIFIEDWAY" + j.ToString() + ".osm", s);
                 File.WriteAllText(@"C:\Users\fery2\Desktop\TEMP\MODIFIEDVIEWPORT.osm", viewPort.ToOSMXML());
                 j++;
-            }
+*/            }
             Way<Point> viewPortWithoutLastPoint = new Way<Point>(viewPort);
             viewPortWithoutLastPoint.RemoveAt(viewPort.Count - 1);
             PopulatePointToWaysDict(pointToWays, viewPortWithoutLastPoint);
@@ -953,7 +953,7 @@ namespace AutomaticWaterMasking
             return polygons;
         }
 
-        public static List<Way<Point>> CreatePolygons(string coastXML, string waterXML, Way<Point> viewPort)
+        public static void CreatePolygons(List<Way<Point>> coastPolygons, List<Way<Point>> inlandPolygons, string coastXML, string waterXML, Way<Point> viewPort)
         {
             Dictionary<string, Way<Point>> coastWays = AreaKMLFromOSMDataCreator.GetWays(coastXML, true);
             Dictionary<string, Way<Point>> waterWays = AreaKMLFromOSMDataCreator.GetWays(waterXML, true);
@@ -976,37 +976,33 @@ namespace AutomaticWaterMasking
             }
 
             List<Way<Point>> mergedCoasts = MergeCoastLines(coastWays);
-            List<Way<Point>> polygons = new List<Way<Point>>();
             int i = 0;
             foreach (Way<Point> way in mergedCoasts)
             {
                 string s = way.ToOSMXML();
-                File.WriteAllText(@"C:\Users\fery2\Desktop\TEMP\MERGEDCOAST" + way.wayID.ToString() + ".osm", s);
+/*                File.WriteAllText(@"C:\Users\fery2\Desktop\TEMP\MERGEDCOAST" + way.wayID.ToString() + ".osm", s);
                 i++;
-            }
+*/            }
 
-            List<Way<Point>> coastPolygons = CoastWaysToPolygon(mergedCoasts, viewPort);
+            List<Way<Point>> mergedCoastPolygons = CoastWaysToPolygon(mergedCoasts, viewPort);
             // add the coast polygons of coast ways which intersect with the view port
-            foreach (Way<Point> way in coastPolygons)
+            foreach (Way<Point> way in mergedCoastPolygons)
             {
-                polygons.Add(way);
+                coastPolygons.Add(way);
             }
             // now add the circular coasts, which either were already full polygons in OSM data, or became one during merging
             foreach (Way<Point> way in mergedCoasts)
             {
                 if (way.IsClosedWay())
                 {
-                    polygons.Add(way);
+                    coastPolygons.Add(way);
                 }
             }
 
             foreach (KeyValuePair<string, Way<Point>> kv in waterWays)
             {
-                polygons.Add(kv.Value);
+                inlandPolygons.Add(kv.Value);
             }
-
-
-            return polygons;
         }
 
         private static List<Way<Point>> MergeCoastLines(Dictionary<string, Way<Point>> coastWays)
@@ -1017,7 +1013,7 @@ namespace AutomaticWaterMasking
             return toMerge;
         }
 
-        public static List<Way<Point>> GetPolygons(DownloadArea d, string saveLoc)
+        public static void GetPolygons(List<Way<Point>> coastPolygons, List<Way<Point>> inlandPolygons, DownloadArea d, string saveLoc)
         {
             string coastXML = DownloadOsmCoastData(d, saveLoc + @"\coast.osm");
             string waterXML = DownloadOsmWaterData(d, saveLoc + @"\water.osm");
@@ -1028,9 +1024,7 @@ namespace AutomaticWaterMasking
             viewPort.Add(new Point(d.startLon, d.endLat));
             viewPort.Add(new Point(d.startLon, d.startLat));
 
-            List<Way<Point>> polygons = CreatePolygons(coastXML, waterXML, viewPort);
-
-            return polygons;
+            CreatePolygons(coastPolygons, inlandPolygons, coastXML, waterXML, viewPort);
         }
 
         public static Point LatLongToPixel(Point latLong, decimal startLat, decimal startLong, decimal pixelsPerLongitude, decimal pixelsPerLatitude)
@@ -1052,7 +1046,26 @@ namespace AutomaticWaterMasking
             return pixel;
         }
 
-        public static Bitmap GetMask(string outPath, int width, int height, Point NW, Point SE, List<Way<Point>> polygons)
+        private static void DrawPolygons(Bitmap bmp, Graphics g, SolidBrush b, decimal pixelsPerLon, decimal pixelsPerLat, Point NW, List<Way<Point>> polygons)
+        {
+            foreach (Way<Point> way in polygons)
+            {
+
+                List<PointF> l = new List<PointF>();
+                for (int i = 0; i < way.Count - 1; i++) // FillPolygon polygons don't need last point, hence - 1
+                {
+                    Point p = way[i];
+                    Point pixel = CoordToPixel(p.Y, p.X, NW.Y, NW.X, pixelsPerLon, pixelsPerLat);
+
+                    l.Add(new PointF((float)pixel.X, (float)pixel.Y));
+                }
+                PointF[] pf = l.ToArray();
+                g.FillPolygon(b, pf);
+
+            }
+        }
+
+        public static Bitmap GetMask(string outPath, int width, int height, Point NW, Point SE, List<Way<Point>> coastPolygons, List<Way<Point>> inlandPolygons)
         {
             Bitmap bmp = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
             decimal pixelsPerLon = Convert.ToDecimal(width) / (SE.X - NW.X);
@@ -1062,21 +1075,9 @@ namespace AutomaticWaterMasking
             {
                 SolidBrush b = new SolidBrush(Color.White);
                 g.FillRectangle(Brushes.Black, 0, 0, bmp.Width, bmp.Height);
-                foreach (Way<Point> way in polygons)
-                {
-
-                    List<PointF> l = new List<PointF>();
-                    for (int i = 0; i < way.Count - 1; i++) // FillPolygon polygons don't need last point, hence - 1
-                    {
-                        Point p = way[i];
-                        Point pixel = CoordToPixel(p.Y, p.X, NW.Y, NW.X, pixelsPerLon, pixelsPerLat);
-
-                        l.Add(new PointF((float)pixel.X, (float)pixel.Y));
-                    }
-                    PointF[] pf = l.ToArray();
-                    g.FillPolygon(b, pf);
-
-                }
+                DrawPolygons(bmp, g, b, pixelsPerLon, pixelsPerLat, NW, coastPolygons);
+                b = new SolidBrush(Color.Black);
+                DrawPolygons(bmp, g, b, pixelsPerLon, pixelsPerLat, NW, inlandPolygons);
             }
 
             return bmp;
