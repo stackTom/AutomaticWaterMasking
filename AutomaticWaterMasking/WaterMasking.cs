@@ -951,7 +951,7 @@ namespace AutomaticWaterMasking
 
         static decimal MASK_LIKE_COAST_LIMIT = 0.002m;
 
-        public static void CreatePolygons(List<Way<Point>> coastPolygons, List<Way<Point>> inlandPolygons, string coastXML, string waterXML, Way<Point> viewPort)
+        public static void CreatePolygons(List<Way<Point>> waterPolygons, List<Way<Point>> inlandPolygons, string coastXML, string waterXML, Way<Point> viewPort)
         {
             Dictionary<string, Way<Point>> coastWays = AreaKMLFromOSMDataCreator.GetWays(coastXML, true);
             Dictionary<string, Way<Point>> waterWays = AreaKMLFromOSMDataCreator.GetWays(waterXML, true);
@@ -965,6 +965,7 @@ namespace AutomaticWaterMasking
                 }
             }
             List<Way<Point>> maskedLikeCoast = new List<Way<Point>>();
+
             foreach (string wayID in waterWays.Keys.ToArray())
             {
                 Way<Point> way = waterWays[wayID];
@@ -976,8 +977,7 @@ namespace AutomaticWaterMasking
                 {
                     if (way.relation == "inner")
                     {
-                        // if relation is inner, this way is part of a multipolygon and it's describing land
-                        // so treat it like coast so we create a land polygon out of it
+                        // if relation is inner, this way is part of a multipolygon and it's describing land, so it's like a coast
                         waterWays.Remove(way.wayID);
                         coastWays.Add(way.wayID, way);
                     }
@@ -1007,25 +1007,28 @@ namespace AutomaticWaterMasking
                 i++;
             }*/
 
-            List<Way<Point>> mergedCoastPolygons = CoastWaysToPolygon(mergedCoastsPlusLargeInland, viewPort);
-            // add the coast polygons of coast ways which intersect with the view port
-            foreach (Way<Point> way in mergedCoastPolygons)
+            List<Way<Point>> mergedWaterPolys = CoastWaysToPolygon(mergedCoastsPlusLargeInland, viewPort);
+            // add the water polygons of coast ways which intersect with the view port
+            foreach (Way<Point> way in mergedWaterPolys)
             {
-                coastPolygons.Add(way);
+                waterPolygons.Add(way);
             }
             // now add the circular coasts, which either were already full polygons in OSM data, or became one during merging
             foreach (Way<Point> way in mergedCoasts)
             {
                 if (way.IsClosedWay())
                 {
-                    coastPolygons.Add(way);
+                    inlandPolygons.Add(way);
                 }
             }
 
+            // now add remaining inland water polygons
             foreach (KeyValuePair<string, Way<Point>> kv in waterWays)
             {
-                inlandPolygons.Add(kv.Value);
+                Way<Point> way = kv.Value;
+                inlandPolygons.Add(way);
             }
+
         }
 
         private static List<Way<Point>> MergeCoastLines(Dictionary<string, Way<Point>> coastWays)
@@ -1036,7 +1039,7 @@ namespace AutomaticWaterMasking
             return toMerge;
         }
 
-        public static void GetPolygons(List<Way<Point>> coastPolygons, List<Way<Point>> inlandPolygons, DownloadArea d, string saveLoc)
+        public static void GetPolygons(List<Way<Point>> waterPolygons, List<Way<Point>> inlandPolygons, DownloadArea d, string saveLoc)
         {
             string coastXML = DownloadOsmCoastData(d, saveLoc + @"\coast.osm");
             string waterXML = DownloadOsmWaterData(d, saveLoc + @"\water.osm");
@@ -1047,7 +1050,7 @@ namespace AutomaticWaterMasking
             viewPort.Add(new Point(d.startLon, d.endLat));
             viewPort.Add(new Point(d.startLon, d.startLat));
 
-            CreatePolygons(coastPolygons, inlandPolygons, coastXML, waterXML, viewPort);
+            CreatePolygons(waterPolygons, inlandPolygons, coastXML, waterXML, viewPort);
         }
 
         public static Point LatLongToPixel(Point latLong, decimal startLat, decimal startLong, decimal pixelsPerLongitude, decimal pixelsPerLatitude)
@@ -1088,7 +1091,7 @@ namespace AutomaticWaterMasking
             }
         }
 
-        public static Bitmap GetMask(string outPath, int width, int height, Point NW, Point SE, List<Way<Point>> coastPolygons, List<Way<Point>> inlandPolygons)
+        public static Bitmap GetMask(string outPath, int width, int height, Point NW, Point SE, List<Way<Point>> waterPolygons, List<Way<Point>> inlandPolygons)
         {
             Bitmap bmp = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
             decimal pixelsPerLon = Convert.ToDecimal(width) / (SE.X - NW.X);
@@ -1096,10 +1099,10 @@ namespace AutomaticWaterMasking
 
             using (Graphics g = Graphics.FromImage(bmp))
             {
-                SolidBrush b = new SolidBrush(Color.White);
-                g.FillRectangle(Brushes.Black, 0, 0, bmp.Width, bmp.Height);
-                DrawPolygons(bmp, g, b, pixelsPerLon, pixelsPerLat, NW, coastPolygons);
-                b = new SolidBrush(Color.Black);
+                SolidBrush b = new SolidBrush(Color.Black);
+                g.FillRectangle(Brushes.White, 0, 0, bmp.Width, bmp.Height);
+                DrawPolygons(bmp, g, b, pixelsPerLon, pixelsPerLat, NW, waterPolygons);
+                b = new SolidBrush(Color.White);
                 DrawPolygons(bmp, g, b, pixelsPerLon, pixelsPerLat, NW, inlandPolygons);
             }
 
