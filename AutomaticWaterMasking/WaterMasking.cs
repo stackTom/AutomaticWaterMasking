@@ -852,11 +852,6 @@ namespace AutomaticWaterMasking
                         curWay = waysContainingPoint[0];
                     }
                     idx = curWay.IndexOf(curPoint);
-                    // need to skip it because start == end in these closed ways; otherwise, get infinite loop
-                    if (idx == curWay.Count - 1)
-                    {
-                        idx = 0;
-                    }
 
                     idx = (idx + 1) % curWay.Count;
                 }
