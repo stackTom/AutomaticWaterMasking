@@ -913,6 +913,7 @@ namespace AutomaticWaterMasking
                 File.WriteAllText(@"C:\Users\fery2\Desktop\TEMP\MODIFIEDVIEWPORT.osm", viewPort.ToOSMXML());
                 j++;
 */            }
+            //File.WriteAllText(@"C:\Users\fery2\Desktop\TEMP\MODIFIEDVIEWPORT.osm", viewPort.ToOSMXML());
             Way<Point> viewPortWithoutLastPoint = new Way<Point>(viewPort);
             viewPortWithoutLastPoint.RemoveAt(viewPort.Count - 1);
             PopulatePointToWaysDict(pointToWays, viewPortWithoutLastPoint);
@@ -953,6 +954,8 @@ namespace AutomaticWaterMasking
             return polygons;
         }
 
+        static decimal MASK_LIKE_COAST_LIMIT = 0.002m;
+
         public static void CreatePolygons(List<Way<Point>> coastPolygons, List<Way<Point>> inlandPolygons, string coastXML, string waterXML, Way<Point> viewPort)
         {
             Dictionary<string, Way<Point>> coastWays = AreaKMLFromOSMDataCreator.GetWays(coastXML, true);
@@ -966,6 +969,7 @@ namespace AutomaticWaterMasking
                     coastWays.Remove(wayID);
                 }
             }
+            List<Way<Point>> maskedLikeCoast = new List<Way<Point>>();
             foreach (string wayID in waterWays.Keys.ToArray())
             {
                 Way<Point> way = waterWays[wayID];
@@ -973,18 +977,42 @@ namespace AutomaticWaterMasking
                 {
                     waterWays.Remove(wayID);
                 }
+                if (way.IsClosedWay())
+                {
+                    if (way.relation == "inner")
+                    {
+                        // if relation is inner, this way is part of a multipolygon and it's describing land
+                        // so treat it like coast so we create a land polygon out of it
+                        waterWays.Remove(way.wayID);
+                        coastWays.Add(way.wayID, way);
+                    }
+                    decimal area = Math.Abs(way.Take(way.Count - 1)
+                           .Select((p, i) => (way[i + 1].X - p.X) * (way[i + 1].Y + p.Y))
+                           .Sum() / 2);
+                    if (area > MASK_LIKE_COAST_LIMIT)
+                    {
+                        // this is a large multipolygon way, mask it as if it were the coast, as it's probably bigger than the viewport and intersects it
+                        waterWays.Remove(way.wayID);
+                        maskedLikeCoast.Add(way);
+                    }
+                }
             }
 
             List<Way<Point>> mergedCoasts = MergeCoastLines(coastWays);
-            int i = 0;
+            List<Way<Point>> mergedCoastsPlusLargeInland = new List<Way<Point>>(mergedCoasts);
+            foreach (Way<Point> way in maskedLikeCoast)
+            {
+                mergedCoastsPlusLargeInland.Add(way);
+            }
+/*            int j = 0;
             foreach (Way<Point> way in mergedCoasts)
             {
                 string s = way.ToOSMXML();
-/*                File.WriteAllText(@"C:\Users\fery2\Desktop\TEMP\MERGEDCOAST" + way.wayID.ToString() + ".osm", s);
+                File.WriteAllText(@"C:\Users\fery2\Desktop\TEMP\MERGEDCOAST" + way.wayID.ToString() + ".osm", s);
                 i++;
-*/            }
+            }*/
 
-            List<Way<Point>> mergedCoastPolygons = CoastWaysToPolygon(mergedCoasts, viewPort);
+            List<Way<Point>> mergedCoastPolygons = CoastWaysToPolygon(mergedCoastsPlusLargeInland, viewPort);
             // add the coast polygons of coast ways which intersect with the view port
             foreach (Way<Point> way in mergedCoastPolygons)
             {

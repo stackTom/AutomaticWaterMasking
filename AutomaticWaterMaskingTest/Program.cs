@@ -19,14 +19,14 @@ namespace AutomaticWaterMaskingTest
             List<Way<AutomaticWaterMasking.Point>> coastPolygons = new List<Way<AutomaticWaterMasking.Point>>();
             List<Way<AutomaticWaterMasking.Point>> inlandPolygons = new List<Way<AutomaticWaterMasking.Point>>();
             WaterMasking.CreatePolygons(coastPolygons, inlandPolygons, coastXML, waterXML, new Way<AutomaticWaterMasking.Point>(viewPort));
-/*            int i = 0;
+            int i = 0;
             foreach (Way<AutomaticWaterMasking.Point> way in coastPolygons)
             {
                 string s = way.ToOSMXML();
                 File.WriteAllText(@"C:\Users\fery2\Desktop\TEMP\coast" + i.ToString() + ".osm", s);
                 i++;
             }
-            foreach (Way<AutomaticWaterMasking.Point> way in inlandPolygons)
+/*            foreach (Way<AutomaticWaterMasking.Point> way in inlandPolygons)
             {
                 string s = way.ToOSMXML();
                 File.WriteAllText(@"C:\Users\fery2\Desktop\TEMP\inland" + i.ToString() + ".osm", s);
