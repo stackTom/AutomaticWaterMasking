@@ -132,7 +132,7 @@ namespace AutomaticWaterMasking
             Point firstCoord = this[0];
             Point lastCoord = this[this.Count - 1];
 
-            return firstCoord.X == lastCoord.X && firstCoord.Y == lastCoord.Y;
+            return firstCoord.Equals(lastCoord);
         }
 
         public override bool Equals(object obj)
