@@ -219,6 +219,8 @@ namespace AutomaticWaterMasking
             }
 
             // returns point of intersection, null if no intersection
+            // didn't want to do high school math, so thanks to
+            // https://stackoverflow.com/questions/4543506/algorithm-for-intersection-of-2-lines
             public Point IntersectsWith(Edge e)
             {
                 decimal delta = this.A * e.B - e.A * this.B;
@@ -986,6 +988,7 @@ namespace AutomaticWaterMasking
                         waterWays.Remove(way.wayID);
                         inlandWater.Add(way);
                     }
+                    // credit: https://stackoverflow.com/questions/2034540/calculating-area-of-irregular-polygon-in-c-sharp
                     decimal area = Math.Abs(way.Take(way.Count - 1)
                            .Select((p, i) => (way[i + 1].X - p.X) * (way[i + 1].Y + p.Y))
                            .Sum() / 2);
@@ -1058,6 +1061,7 @@ namespace AutomaticWaterMasking
             CreatePolygons(coastWaterPolygons, inlandPolygons, inlandWater, coastXML, waterXML, viewPort);
         }
 
+        // these lat long to pixel, and vice versa, formulas, are from FSEarthtiles
         public static Point LatLongToPixel(Point latLong, decimal startLat, decimal startLong, decimal pixelsPerLongitude, decimal pixelsPerLatitude)
         {
             Point vPixelXYCoord = new Point(pixelsPerLongitude * (latLong.X - startLong), pixelsPerLatitude * (startLat - latLong.Y));
