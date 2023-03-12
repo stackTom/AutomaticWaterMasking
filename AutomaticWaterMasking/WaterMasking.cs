@@ -356,6 +356,31 @@ namespace AutomaticWaterMasking
             nodeEle.SetAttribute("user", "AutomaticWaterMasker");
         }
 
+        public XmlElement CreateOSMXMLNodeAndNDEles(XmlDocument d, XmlElement osmEle, int startIdx)
+        {
+            XmlElement wayEle = d.CreateElement(string.Empty, "way", string.Empty);
+            wayEle.SetAttribute("id", this.wayID != null ? this.wayID : "1");
+            AddMissingOSMAttributes(wayEle);
+
+            foreach (Point p in this)
+            {
+                XmlElement nodeEle = d.CreateElement(string.Empty, "node", string.Empty);
+                nodeEle.SetAttribute("id", startIdx.ToString());
+                nodeEle.SetAttribute("lat", p.Y.ToString());
+                nodeEle.SetAttribute("lon", p.X.ToString());
+                AddMissingOSMAttributes(nodeEle);
+                osmEle.AppendChild(nodeEle);
+
+                XmlElement ndEle = d.CreateElement(string.Empty, "nd", string.Empty);
+                ndEle.SetAttribute("ref", startIdx.ToString());
+                wayEle.AppendChild(ndEle);
+                startIdx++;
+            }
+
+            return wayEle;
+        }
+
+
         public string ToOSMXML()
         {
             XmlDocument d = new XmlDocument();
@@ -366,28 +391,12 @@ namespace AutomaticWaterMasking
             d.AppendChild(osmEle);
             osmEle.SetAttribute("version", "0.6");
             osmEle.SetAttribute("generator", "AutomaticWaterMasking");
-            XmlElement wayEle = d.CreateElement(string.Empty, "way", string.Empty);
-            wayEle.SetAttribute("id", this.wayID != null ? this.wayID : "1");
-            AddMissingOSMAttributes(wayEle);
 
             XmlElement metaEle = d.CreateElement(string.Empty, "meta", string.Empty);
             osmEle.AppendChild(metaEle);
+            int i = 1; // must start at 1 or get error in JOSM...
+            XmlElement wayEle = CreateOSMXMLNodeAndNDEles(d, osmEle, i);
 
-            int idx = 1; // must start at 1 or get error in JOSM...
-            foreach (Point p in this)
-            {
-                XmlElement nodeEle = d.CreateElement(string.Empty, "node", string.Empty);
-                nodeEle.SetAttribute("id", idx.ToString());
-                nodeEle.SetAttribute("lat", p.Y.ToString());
-                nodeEle.SetAttribute("lon", p.X.ToString());
-                AddMissingOSMAttributes(nodeEle);
-                osmEle.AppendChild(nodeEle);
-
-                XmlElement ndEle = d.CreateElement(string.Empty, "nd", string.Empty);
-                ndEle.SetAttribute("ref", idx.ToString());
-                wayEle.AppendChild(ndEle);
-                idx++;
-            }
             osmEle.AppendChild(wayEle);
 
             return d.OuterXml;
@@ -593,7 +602,32 @@ namespace AutomaticWaterMasking
             return wayIDsToWays;
         }
 
+        public static string WaysToOSMXML(List<Way<Point>> ways)
+        {
+            XmlDocument d = new XmlDocument();
+            XmlDeclaration xmlDeclaration = d.CreateXmlDeclaration("1.0", "UTF-8", null);
+            XmlElement root = d.DocumentElement;
+            d.InsertBefore(xmlDeclaration, root);
+            XmlElement osmEle = d.CreateElement(string.Empty, "osm", string.Empty);
+            d.AppendChild(osmEle);
+            osmEle.SetAttribute("version", "0.6");
+            osmEle.SetAttribute("generator", "AutomaticWaterMasking");
+
+            XmlElement metaEle = d.CreateElement(string.Empty, "meta", string.Empty);
+            osmEle.AppendChild(metaEle);
+            int i = 1; // must start at 1 or get error in JOSM...
+            foreach (Way<Point> way in ways)
+            {
+                XmlElement wayEle = way.CreateOSMXMLNodeAndNDEles(d, osmEle, i);
+                osmEle.AppendChild(wayEle);
+                i += way.Count;
+            }
+
+            return d.OuterXml;
+        }
     }
+
+
     public struct DownloadArea
     {
         public decimal startLon;

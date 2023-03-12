@@ -20,13 +20,6 @@ namespace AutomaticWaterMaskingTest
             List<Way<AutomaticWaterMasking.Point>> inlandPolygons = new List<Way<AutomaticWaterMasking.Point>>();
             List<Way<AutomaticWaterMasking.Point>> inlandWater = new List<Way<AutomaticWaterMasking.Point>>();
             WaterMasking.CreatePolygons(coastWaterPolygons, inlandPolygons, inlandWater, coastXML, waterXML, new Way<AutomaticWaterMasking.Point>(viewPort));
-            int i = 0;
-            foreach (Way<AutomaticWaterMasking.Point> way in coastWaterPolygons)
-            {
-                string s = way.ToOSMXML();
-                File.WriteAllText(@"C:\Users\fery2\Desktop\TEMP\coast" + i.ToString() + ".osm", s);
-                i++;
-            }
             Bitmap bmp = WaterMasking.GetMask(outPath, 4096, 4096, viewPort[0], viewPort[2], coastWaterPolygons, inlandPolygons, inlandWater);
             bmp.Save(outPath + @"\img.bmp", System.Drawing.Imaging.ImageFormat.Bmp);
         }
