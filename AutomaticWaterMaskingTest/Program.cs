@@ -27,13 +27,7 @@ namespace AutomaticWaterMaskingTest
                 File.WriteAllText(@"C:\Users\fery2\Desktop\TEMP\coast" + i.ToString() + ".osm", s);
                 i++;
             }
-/*            foreach (Way<AutomaticWaterMasking.Point> way in inlandPolygons)
-            {
-                string s = way.ToOSMXML();
-                File.WriteAllText(@"C:\Users\fery2\Desktop\TEMP\inland" + i.ToString() + ".osm", s);
-                i++;
-            }
-*/            Bitmap bmp = WaterMasking.GetMask(outPath, 4096, 4096, viewPort[0], viewPort[2], coastWaterPolygons, inlandPolygons, inlandWater);
+            Bitmap bmp = WaterMasking.GetMask(outPath, 4096, 4096, viewPort[0], viewPort[2], coastWaterPolygons, inlandPolygons, inlandWater);
             bmp.Save(outPath + @"\img.bmp", System.Drawing.Imaging.ImageFormat.Bmp);
         }
     }

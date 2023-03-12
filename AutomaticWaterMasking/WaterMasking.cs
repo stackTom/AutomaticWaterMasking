@@ -554,8 +554,8 @@ namespace AutomaticWaterMasking
             HashSet<Way<Point>> toDelete = new HashSet<Way<Point>>();
             foreach (XmlElement rel in relationTags)
             {
-                // unite multipolygon pieces into one big linestring, since fset just looks at line. no point in doing a kml polygon
-                // since fset seems to not understand outer vs inner relation. we need this because singular way lines of inner water are problematic
+                // unite multipolygon pieces into one big linestring
+                // we need this because singular way lines of inner water are problematic
                 // it is hard to determine direction the water is in relative to the way because I believe OSM only requires direction
                 // for coastal ways. but if we make them a full polygon, then it is easy to determine that the water is inside the polygon
                 // here we compare every way to every other way.
@@ -908,12 +908,7 @@ namespace AutomaticWaterMasking
                 }
                 PopulatePointToWaysDict(pointToWays, way);
 
-/*                string s = way.ToOSMXML();
-                File.WriteAllText(@"C:\Users\fery2\Desktop\TEMP\MODIFIEDWAY" + j.ToString() + ".osm", s);
-                File.WriteAllText(@"C:\Users\fery2\Desktop\TEMP\MODIFIEDVIEWPORT.osm", viewPort.ToOSMXML());
-                j++;
-*/            }
-            //File.WriteAllText(@"C:\Users\fery2\Desktop\TEMP\MODIFIEDVIEWPORT.osm", viewPort.ToOSMXML());
+            }
             Way<Point> viewPortWithoutLastPoint = new Way<Point>(viewPort);
             viewPortWithoutLastPoint.RemoveAt(viewPort.Count - 1);
             PopulatePointToWaysDict(pointToWays, viewPortWithoutLastPoint);
@@ -1013,13 +1008,6 @@ namespace AutomaticWaterMasking
             {
                 mergedCoastsPlusLargeInland.Add(way);
             }
-/*            int j = 0;
-            foreach (Way<Point> way in mergedCoasts)
-            {
-                string s = way.ToOSMXML();
-                File.WriteAllText(@"C:\Users\fery2\Desktop\TEMP\MERGEDCOAST" + way.wayID.ToString() + ".osm", s);
-                i++;
-            }*/
 
             List<Way<Point>> mergedWaterPolys = CoastWaysToPolygon(mergedCoastsPlusLargeInland, viewPort);
             // add the water polygons of coast ways which intersect with the view port
