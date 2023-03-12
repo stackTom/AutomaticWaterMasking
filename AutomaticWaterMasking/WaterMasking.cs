@@ -473,7 +473,11 @@ namespace AutomaticWaterMasking
                     foreach (XmlElement member in rel.GetElementsByTagName("member"))
                     {
                         string wayID = member.GetAttribute("ref");
-                        waysInThisMultipolygon.Add(wayIDsToWays[wayID]);
+                        Way<Point> way = null;
+                        if (wayIDsToWays.TryGetValue(wayID, out way))
+                        {
+                            waysInThisMultipolygon.Add(way);
+                        }
                         string role = member.GetAttribute("role");
                         string curRole = null;
                         wayIDsToRelation.TryGetValue(wayID, out curRole);
@@ -491,7 +495,6 @@ namespace AutomaticWaterMasking
                         else if (curRole != role && role == "inner")
                         {
                             // set it to inner whether it's previous role was inner or outer. if it's inner, just treat it as land.
-                            // TODO: what about water that is inner in another land... need to fix
                             wayIDsToRelation[wayID] = role;
                         }
                     }
@@ -981,7 +984,10 @@ namespace AutomaticWaterMasking
                     {
                         // if relation is inner, this way is part of a multipolygon and it's describing land, so it's like a coast
                         waterWays.Remove(way.wayID);
-                        coastWays.Add(way.wayID, way);
+                        if (!coastWays.ContainsKey(way.wayID))
+                        {
+                            coastWays.Add(way.wayID, way);
+                        }
                     }
                     else if (way.relation == null)
                     {
@@ -1034,9 +1040,11 @@ namespace AutomaticWaterMasking
             foreach (KeyValuePair<string, Way<Point>> kv in waterWays)
             {
                 Way<Point> way = kv.Value;
-                inlandPolygons.Add(way);
+                if (way.IsClosedWay())
+                {
+                    inlandWater.Add(way);
+                }
             }
-
         }
 
         private static List<Way<Point>> MergeCoastLines(Dictionary<string, Way<Point>> coastWays)
