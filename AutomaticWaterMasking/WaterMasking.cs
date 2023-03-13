@@ -356,10 +356,10 @@ namespace AutomaticWaterMasking
             nodeEle.SetAttribute("user", "AutomaticWaterMasker");
         }
 
-        public XmlElement CreateOSMXMLNodeAndNDEles(XmlDocument d, XmlElement osmEle, int startIdx)
+        public XmlElement CreateOSMXMLWayNodeAndNDEles(XmlDocument d, XmlElement osmEle, string wayID, int startIdx)
         {
             XmlElement wayEle = d.CreateElement(string.Empty, "way", string.Empty);
-            wayEle.SetAttribute("id", this.wayID != null ? this.wayID : "1");
+            wayEle.SetAttribute("id", wayID);
             AddMissingOSMAttributes(wayEle);
 
             foreach (Point p in this)
@@ -395,7 +395,7 @@ namespace AutomaticWaterMasking
             XmlElement metaEle = d.CreateElement(string.Empty, "meta", string.Empty);
             osmEle.AppendChild(metaEle);
             int i = 1; // must start at 1 or get error in JOSM...
-            XmlElement wayEle = CreateOSMXMLNodeAndNDEles(d, osmEle, i);
+            XmlElement wayEle = CreateOSMXMLWayNodeAndNDEles(d, osmEle, this.wayID != null ? this.wayID : "1", i);
 
             osmEle.AppendChild(wayEle);
 
@@ -618,7 +618,7 @@ namespace AutomaticWaterMasking
             int i = 1; // must start at 1 or get error in JOSM...
             foreach (Way<Point> way in ways)
             {
-                XmlElement wayEle = way.CreateOSMXMLNodeAndNDEles(d, osmEle, i);
+                XmlElement wayEle = way.CreateOSMXMLWayNodeAndNDEles(d, osmEle, i.ToString(), i);
                 osmEle.AppendChild(wayEle);
                 i += way.Count;
             }
