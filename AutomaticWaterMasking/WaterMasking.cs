@@ -830,8 +830,13 @@ namespace AutomaticWaterMasking
             while (intersections.Count > 0)
             {
                 List<Point> intersectionsRemoved = new List<Point>();
+                int timesTriedToClosePolygon = 0;
                 while (!polygon.IsClosedWay())
                 {
+                    if (timesTriedToClosePolygon > 10000)
+                    {
+                        throw new Exception("Endless loop trying to close polygon; there is probably something wrong with the data");
+                    }
                     curPoint = curWay[idx];
                     if (!PointInViewport(curPoint, origViewPort)) // origViewPort because otherwise, get weird, concave shapes as points removed from viewPort
                     {
@@ -893,6 +898,7 @@ namespace AutomaticWaterMasking
                     idx = curWay.IndexOf(curPoint);
 
                     idx = (idx + 1) % curWay.Count;
+                    timesTriedToClosePolygon++;
                 }
                 polygons.Add(polygon);
                 foreach (Point p in polygon)
@@ -955,7 +961,15 @@ namespace AutomaticWaterMasking
             while (keepTrying)
             {
                 keepTrying = false;
-                List<Way<Point>> newPolys = TryToBuildPolygons(pointToWays, ref startingWay, ref viewPort, ref startingIdx, ref followViewPort, allIntersections); // copy of intersections in case we need to start again
+                List<Way<Point>> newPolys = null;
+                try
+                {
+                    newPolys = TryToBuildPolygons(pointToWays, ref startingWay, ref viewPort, ref startingIdx, ref followViewPort, allIntersections); // copy of intersections in case we need to start again
+                }
+                catch (Exception e)
+                {
+                    throw e;
+                }
                 if (newPolys != null)
                 {
                     foreach (Way<Point> w in newPolys)
@@ -969,10 +983,9 @@ namespace AutomaticWaterMasking
                     keepTrying = true;
                 }
 
-                if (numRetries > 100000)
+                if (numRetries > 10000)
                 {
-                    Console.WriteLine("Failed building polygons, there is likely something wrong with the data");
-                    return null;
+                    throw new Exception("Failed building polygons; there is likely something wrong with the data");
                 }
             }
             // reset for next round
