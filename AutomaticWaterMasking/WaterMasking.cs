@@ -1088,16 +1088,10 @@ namespace AutomaticWaterMasking
             return toMerge;
         }
 
-        public static void GetPolygons(List<Way<Point>> coastWaterPolygons, List<Way<Point>>[] inlandPolygons, DownloadArea d, string saveLoc)
+        public static void GetPolygons(List<Way<Point>> coastWaterPolygons, List<Way<Point>>[] inlandPolygons, DownloadArea d, Way<Point> viewPort, string saveLoc)
         {
             string coastXML = DownloadOsmCoastData(d, saveLoc + @"\coast.osm");
             string waterXML = DownloadOsmWaterData(d, saveLoc + @"\water.osm");
-            Way<Point> viewPort = new Way<Point>();
-            viewPort.Add(new Point(d.startLon, d.startLat));
-            viewPort.Add(new Point(d.endLon, d.startLat));
-            viewPort.Add(new Point(d.endLon, d.endLat));
-            viewPort.Add(new Point(d.startLon, d.endLat));
-            viewPort.Add(new Point(d.startLon, d.startLat));
 
             CreatePolygons(coastWaterPolygons, inlandPolygons, coastXML, waterXML, viewPort);
         }
