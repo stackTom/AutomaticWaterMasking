@@ -998,7 +998,8 @@ namespace AutomaticWaterMasking
 
         static decimal MASK_LIKE_COAST_LIMIT = 0.002m;
 
-        public static void CreatePolygons(List<Way<Point>> coastWaterPolygons, List<Way<Point>> inlandPolygons, List<Way<Point>> inlandWater, string coastXML, string waterXML, Way<Point> viewPort)
+        // TODO: the array of List<Way<Point>> is ugly. Find another way to represent the different layers representing alternating land and water.
+        public static void CreatePolygons(List<Way<Point>> coastWaterPolygons, List<Way<Point>>[] inlandPolygons, string coastXML, string waterXML, Way<Point> viewPort)
         {
             Dictionary<string, Way<Point>> coastWays = AreaKMLFromOSMDataCreator.GetWays(coastXML, true);
             Dictionary<string, Way<Point>> waterWays = AreaKMLFromOSMDataCreator.GetWays(waterXML, true);
@@ -1022,19 +1023,26 @@ namespace AutomaticWaterMasking
                 }
                 if (way.IsClosedWay())
                 {
-                    if (way.relation == "inner")
+                    if (way.relation == "outer")
                     {
-                        // if relation is inner, this way is part of a multipolygon and it's describing land, so add it to the inland land polygons
-                        waterWays.Remove(way.wayID);
-                        if (!inlandPolygons.Contains(way))
+                        if (!inlandPolygons[0].Contains(way))
                         {
-                            inlandPolygons.Add(way);
+                            inlandPolygons[0].Add(way);
+                        }
+                    }
+                    else if (way.relation == "inner")
+                    {
+                        if (!inlandPolygons[1].Contains(way))
+                        {
+                            inlandPolygons[1].Add(way);
                         }
                     }
                     else if (way.relation == null)
                     {
-                        waterWays.Remove(way.wayID);
-                        inlandWater.Add(way);
+                        if (!inlandPolygons[2].Contains(way))
+                        {
+                            inlandPolygons[2].Add(way);
+                        }
                     }
                     // credit: https://stackoverflow.com/questions/2034540/calculating-area-of-irregular-polygon-in-c-sharp
                     decimal area = Math.Abs(way.Take(way.Count - 1)
@@ -1067,17 +1075,7 @@ namespace AutomaticWaterMasking
             {
                 if (way.IsClosedWay())
                 {
-                    inlandPolygons.Add(way);
-                }
-            }
-
-            // now add remaining inland water polygons
-            foreach (KeyValuePair<string, Way<Point>> kv in waterWays)
-            {
-                Way<Point> way = kv.Value;
-                if (way.IsClosedWay())
-                {
-                    inlandWater.Add(way);
+                    inlandPolygons[1].Add(way);
                 }
             }
         }
@@ -1090,7 +1088,7 @@ namespace AutomaticWaterMasking
             return toMerge;
         }
 
-        public static void GetPolygons(List<Way<Point>> coastWaterPolygons, List<Way<Point>> inlandPolygons, List<Way<Point>> inlandWater, DownloadArea d, string saveLoc)
+        public static void GetPolygons(List<Way<Point>> coastWaterPolygons, List<Way<Point>>[] inlandPolygons, DownloadArea d, string saveLoc)
         {
             string coastXML = DownloadOsmCoastData(d, saveLoc + @"\coast.osm");
             string waterXML = DownloadOsmWaterData(d, saveLoc + @"\water.osm");
@@ -1101,7 +1099,7 @@ namespace AutomaticWaterMasking
             viewPort.Add(new Point(d.startLon, d.endLat));
             viewPort.Add(new Point(d.startLon, d.startLat));
 
-            CreatePolygons(coastWaterPolygons, inlandPolygons, inlandWater, coastXML, waterXML, viewPort);
+            CreatePolygons(coastWaterPolygons, inlandPolygons, coastXML, waterXML, viewPort);
         }
 
         // these lat long to pixel, and vice versa, formulas, are from FSEarthtiles
@@ -1143,7 +1141,7 @@ namespace AutomaticWaterMasking
             }
         }
 
-        public static Bitmap GetMask(string outPath, int width, int height, Point NW, Point SE, List<Way<Point>> waterPolygons, List<Way<Point>> inlandPolygons, List<Way<Point>> inlandWater)
+        public static Bitmap GetMask(string outPath, int width, int height, Point NW, Point SE, List<Way<Point>> waterPolygons, List<Way<Point>>[] inlandPolygons)
         {
             Bitmap bmp = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
             decimal pixelsPerLon = Convert.ToDecimal(width) / (SE.X - NW.X);
@@ -1154,10 +1152,19 @@ namespace AutomaticWaterMasking
                 g.FillRectangle(Brushes.White, 0, 0, bmp.Width, bmp.Height);
                 SolidBrush b = new SolidBrush(Color.Black);
                 DrawPolygons(bmp, g, b, pixelsPerLon, pixelsPerLat, NW, waterPolygons);
-                b = new SolidBrush(Color.White);
-                DrawPolygons(bmp, g, b, pixelsPerLon, pixelsPerLat, NW, inlandPolygons);
-                b = new SolidBrush(Color.Black);
-                DrawPolygons(bmp, g, b, pixelsPerLon, pixelsPerLat, NW, inlandWater);
+                for (int i = 0; i < inlandPolygons.Length; i++)
+                {
+                    if (i % 2 == 0)
+                    {
+                        b = new SolidBrush(Color.Black);
+                        DrawPolygons(bmp, g, b, pixelsPerLon, pixelsPerLat, NW, inlandPolygons[i]);
+                    }
+                    else
+                    {
+                        b = new SolidBrush(Color.White);
+                        DrawPolygons(bmp, g, b, pixelsPerLon, pixelsPerLat, NW, inlandPolygons[i]);
+                    }
+                }
             }
 
             return bmp;

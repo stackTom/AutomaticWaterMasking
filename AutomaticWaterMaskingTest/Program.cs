@@ -17,10 +17,11 @@ namespace AutomaticWaterMaskingTest
             Way<AutomaticWaterMasking.Point> viewPort = new List<Way<AutomaticWaterMasking.Point>>(AreaKMLFromOSMDataCreator.GetWays(viewPortXML, true).Values)[0];
 
             List<Way<AutomaticWaterMasking.Point>> coastWaterPolygons = new List<Way<AutomaticWaterMasking.Point>>();
-            List<Way<AutomaticWaterMasking.Point>> inlandPolygons = new List<Way<AutomaticWaterMasking.Point>>();
-            List<Way<AutomaticWaterMasking.Point>> inlandWater = new List<Way<AutomaticWaterMasking.Point>>();
-            WaterMasking.CreatePolygons(coastWaterPolygons, inlandPolygons, inlandWater, coastXML, waterXML, new Way<AutomaticWaterMasking.Point>(viewPort));
-            Bitmap bmp = WaterMasking.GetMask(outPath, 4096, 4096, viewPort[0], viewPort[2], coastWaterPolygons, inlandPolygons, inlandWater);
+            List<Way<AutomaticWaterMasking.Point>>[] inlandPolygons = new[] {
+                new List<Way<AutomaticWaterMasking.Point>>(), new List<Way<AutomaticWaterMasking.Point>>(), new List<Way<AutomaticWaterMasking.Point>>(), new List<Way<AutomaticWaterMasking.Point>>()
+            };
+            WaterMasking.CreatePolygons(coastWaterPolygons, inlandPolygons, coastXML, waterXML, new Way<AutomaticWaterMasking.Point>(viewPort));
+            Bitmap bmp = WaterMasking.GetMask(outPath, 16000, 1000, viewPort[0], viewPort[2], coastWaterPolygons, inlandPolygons);
             bmp.Save(outPath + @"\img.bmp", System.Drawing.Imaging.ImageFormat.Bmp);
         }
     }
