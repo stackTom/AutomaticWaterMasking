@@ -1024,11 +1024,11 @@ namespace AutomaticWaterMasking
                 {
                     if (way.relation == "inner")
                     {
-                        // if relation is inner, this way is part of a multipolygon and it's describing land, so it's like a coast
+                        // if relation is inner, this way is part of a multipolygon and it's describing land, so add it to the inland land polygons
                         waterWays.Remove(way.wayID);
-                        if (!coastWays.ContainsKey(way.wayID))
+                        if (!inlandPolygons.Contains(way))
                         {
-                            coastWays.Add(way.wayID, way);
+                            inlandPolygons.Add(way);
                         }
                     }
                     else if (way.relation == null)
