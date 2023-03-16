@@ -839,7 +839,7 @@ namespace AutomaticWaterMasking
         }
 
         private static int BACK_TRACK_RETRIES = 10000;
-        private static int CLOSE_WAY_RETRIES = 10000;
+        private static int CLOSE_WAY_RETRIES = 100000;
 
         private static List<Way<Point>> TryToBuildPolygons(Dictionary<Point, List<Way<Point>>> pointToWays, ref Way<Point> startingWay, ref Way<Point> viewPort, ref int startingIdx, ref bool followViewPort, List<Point> intersections)
         {
