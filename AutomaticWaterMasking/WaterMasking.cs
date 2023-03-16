@@ -1029,8 +1029,6 @@ namespace AutomaticWaterMasking
             return polygons;
         }
 
-        static decimal MASK_LIKE_COAST_LIMIT = 0.002m;
-
         // TODO: the array of List<Way<Point>> is ugly. Find another way to represent the different layers representing alternating land and water.
         public static void CreatePolygons(List<Way<Point>> coastWaterPolygons, List<Way<Point>>[] inlandPolygons, string coastXML, string waterXML, Way<Point> viewPort)
         {
@@ -1045,7 +1043,6 @@ namespace AutomaticWaterMasking
                     coastWays.Remove(wayID);
                 }
             }
-            List<Way<Point>> maskedLikeCoast = new List<Way<Point>>();
 
             foreach (string wayID in waterWays.Keys.ToArray())
             {
@@ -1077,27 +1074,12 @@ namespace AutomaticWaterMasking
                             inlandPolygons[2].Add(way);
                         }
                     }
-                    // credit: https://stackoverflow.com/questions/2034540/calculating-area-of-irregular-polygon-in-c-sharp
-                    decimal area = Math.Abs(way.Take(way.Count - 1)
-                           .Select((p, i) => (way[i + 1].X - p.X) * (way[i + 1].Y + p.Y))
-                           .Sum() / 2);
-                    if (area > MASK_LIKE_COAST_LIMIT)
-                    {
-                        // this is a large multipolygon way, mask it as if it were the coast, as it's probably bigger than the viewport and intersects it
-                        waterWays.Remove(way.wayID);
-                        maskedLikeCoast.Add(way);
-                    }
                 }
             }
 
             List<Way<Point>> mergedCoasts = MergeCoastLines(coastWays);
-            List<Way<Point>> mergedCoastsPlusLargeInland = new List<Way<Point>>(mergedCoasts);
-            foreach (Way<Point> way in maskedLikeCoast)
-            {
-                mergedCoastsPlusLargeInland.Add(way);
-            }
 
-            List<Way<Point>> mergedWaterPolys = CoastWaysToPolygon(mergedCoastsPlusLargeInland, viewPort);
+            List<Way<Point>> mergedWaterPolys = CoastWaysToPolygon(mergedCoasts, viewPort);
             // add the water polygons of coast ways which intersect with the view port
             foreach (Way<Point> way in mergedWaterPolys)
             {
