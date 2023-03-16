@@ -838,7 +838,8 @@ namespace AutomaticWaterMasking
             return true;
         }
 
-        private static int RETRIES = 1000000000;
+        private static int BACK_TRACK_RETRIES = 10000;
+        private static int CLOSE_WAY_RETRIES = 10000;
 
         private static List<Way<Point>> TryToBuildPolygons(Dictionary<Point, List<Way<Point>>> pointToWays, ref Way<Point> startingWay, ref Way<Point> viewPort, ref int startingIdx, ref bool followViewPort, List<Point> intersections)
         {
@@ -849,14 +850,15 @@ namespace AutomaticWaterMasking
             Way<Point> curWay = startingWay;
             Point curPoint = null;
             Way<Point> origViewPort = new Way<Point>(viewPort);
+            int lastIntersectionsCount = 0;
 
             while (intersections.Count > 0)
             {
                 List<Point> intersectionsRemoved = new List<Point>();
-                int timesTriedToClosePolygon = 0;
+                int noprogressClosingPolygon = 0;
                 while (!polygon.IsClosedWay())
                 {
-                    if (timesTriedToClosePolygon > RETRIES)
+                    if (noprogressClosingPolygon > CLOSE_WAY_RETRIES)
                     {
                         throw new Exception("Endless loop trying to close polygon; there is probably something wrong with the data");
                     }
@@ -921,7 +923,15 @@ namespace AutomaticWaterMasking
                     idx = curWay.IndexOf(curPoint);
 
                     idx = (idx + 1) % curWay.Count;
-                    timesTriedToClosePolygon++;
+                    if (lastIntersectionsCount == intersections.Count)
+                    {
+                        noprogressClosingPolygon++;
+                    }
+                    else
+                    {
+                        noprogressClosingPolygon = 0;
+                    }
+                    lastIntersectionsCount = intersections.Count;
                 }
                 polygons.Add(polygon);
                 foreach (Point p in polygon)
@@ -1006,7 +1016,7 @@ namespace AutomaticWaterMasking
                     keepTrying = true;
                 }
 
-                if (numRetries > RETRIES)
+                if (numRetries > BACK_TRACK_RETRIES)
                 {
                     throw new Exception("Failed building polygons; there is likely something wrong with the data");
                 }
