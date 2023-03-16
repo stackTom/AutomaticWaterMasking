@@ -21,7 +21,7 @@ namespace AutomaticWaterMaskingTest
                 new List<Way<AutomaticWaterMasking.Point>>(), new List<Way<AutomaticWaterMasking.Point>>(), new List<Way<AutomaticWaterMasking.Point>>(), new List<Way<AutomaticWaterMasking.Point>>()
             };
             WaterMasking.CreatePolygons(coastWaterPolygons, inlandPolygons, coastXML, waterXML, new Way<AutomaticWaterMasking.Point>(viewPort));
-            Bitmap bmp = WaterMasking.GetMask(outPath, 16000, 1000, viewPort[0], viewPort[2], coastWaterPolygons, inlandPolygons);
+            Bitmap bmp = WaterMasking.GetMask(outPath, 4096, 4096, viewPort[0], viewPort[2], coastWaterPolygons, inlandPolygons);
             bmp.Save(outPath + @"\img.bmp", System.Drawing.Imaging.ImageFormat.Bmp);
         }
     }

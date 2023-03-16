@@ -7,10 +7,31 @@ using System.Linq;
 
 namespace AutomaticWaterMasking
 {
+    public static class SafeCompare
+    {
+        private static decimal EPSILON = 0.00000000000001m;
+        public static bool SafeLessThan(decimal d1, decimal d2)
+        {
+            return (d1 - d2) < -EPSILON;
+        }
+
+        public static bool SafeGreaterThan(decimal d1, decimal d2)
+        {
+            return (d1 - d2) > EPSILON;
+        }
+
+        public static bool SafeEquals(decimal d1, decimal d2)
+        {
+            return Math.Abs(d1 - d2) < EPSILON;
+        }
+
+    }
+
     public class XYPair
     {
         public decimal X;
         public decimal Y;
+        private const int ROUND_TO_DIGITS = 14;
 
         public XYPair(decimal x, decimal y)
         {
@@ -20,7 +41,9 @@ namespace AutomaticWaterMasking
 
         public override string ToString()
         {
-            return this.Y + ", " + this.X;
+            // G29 basically trims trailing 0's
+
+            return Decimal.Round(this.Y, ROUND_TO_DIGITS).ToString("G29") + ", " + Decimal.Round(this.X, ROUND_TO_DIGITS).ToString("G29");
         }
 
         public override bool Equals(object obj)
@@ -39,6 +62,17 @@ namespace AutomaticWaterMasking
     public class Point : XYPair
     {
         public Point(decimal x, decimal y) : base(x, y) { }
+        public override int GetHashCode()
+        {
+            return base.GetHashCode();
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is Point pair &&
+                   SafeCompare.SafeEquals(X, pair.X) &&
+                   SafeCompare.SafeEquals(Y, pair.Y);
+        }
 
     }
 
@@ -168,22 +202,6 @@ namespace AutomaticWaterMasking
             }
         }
 
-        private static decimal EPSILON = 0.00000000000001m;
-        public static bool SafeLessThan(decimal d1, decimal d2)
-        {
-            return (d1 - d2) < -EPSILON;
-        }
-
-        public static bool SafeGreaterThan(decimal d1, decimal d2)
-        {
-            return (d1 - d2) > EPSILON;
-        }
-
-        public static bool SafeEquals(decimal d1, decimal d2)
-        {
-            return (d1 - d2) < EPSILON;
-        }
-
         private class Edge
         {
             public Point p1;
@@ -210,7 +228,7 @@ namespace AutomaticWaterMasking
                 decimal minY = Math.Min(this.p1.Y, this.p2.Y);
                 decimal maxY = Math.Max(this.p1.Y, this.p2.Y);
 
-                if (SafeLessThan(p.X, minX) || SafeGreaterThan(p.X, maxX) || SafeLessThan(p.Y, minY) || SafeGreaterThan(p.Y, maxY))
+                if (SafeCompare.SafeLessThan(p.X, minX) || SafeCompare.SafeGreaterThan(p.X, maxX) || SafeCompare.SafeLessThan(p.Y, minY) || SafeCompare.SafeGreaterThan(p.Y, maxY))
                 {
                     return false;
                 }
@@ -262,10 +280,10 @@ namespace AutomaticWaterMasking
             public Direction GetDirection()
             {
                 // equal lon (x)
-                if (SafeEquals(this.p1.X, this.p2.X))
+                if (SafeCompare.SafeEquals(this.p1.X, this.p2.X))
                 {
                     // going from north to south, water is on west
-                    if (SafeGreaterThan(this.p1.Y, this.p2.Y))
+                    if (SafeCompare.SafeGreaterThan(this.p1.Y, this.p2.Y))
                     {
                         return Direction.NorthToSouth;
                     }
@@ -273,10 +291,10 @@ namespace AutomaticWaterMasking
                     return Direction.SouthToNorth;
                 }
                 // equal lat (y)
-                if (SafeEquals(this.p1.Y, this.p2.Y))
+                if (SafeCompare.SafeEquals(this.p1.Y, this.p2.Y))
                 {
                     // going from east to west, water is on north
-                    if (SafeGreaterThan(this.p1.X, this.p2.X))
+                    if (SafeCompare.SafeGreaterThan(this.p1.X, this.p2.X))
                     {
                         return Direction.EastToWest;
                     }
@@ -286,9 +304,9 @@ namespace AutomaticWaterMasking
                 // neither lat nor lon are equal, look at the slope
                 decimal dx = this.p2.X - this.p1.X;
                 decimal dy = this.p2.Y - this.p1.Y;
-                if (SafeGreaterThan((dy / dx), 0))
+                if (SafeCompare.SafeGreaterThan((dy / dx), 0))
                 {
-                    if (SafeGreaterThan(dy, 0))
+                    if (SafeCompare.SafeGreaterThan(dy, 0))
                     {
                         // going from southwest to northeast, water is on southeast
                         return Direction.SWToNE;
@@ -297,7 +315,7 @@ namespace AutomaticWaterMasking
                     return Direction.NEToSW;
                 }
                 // at this point slope < 0. should never be 0 because lat's can't equal by this point
-                if (SafeGreaterThan(dy, 0))
+                if (SafeCompare.SafeGreaterThan(dy, 0))
                 {
                     // going from southeast to northwest, water is on northeast
                     return Direction.SEToNW;
@@ -325,13 +343,16 @@ namespace AutomaticWaterMasking
                     Point intersection = thisEdge.IntersectsWith(checkEdge);
                     if (intersection != null)
                     {
-                        intersections.Add(intersection);
-                        if (insertIntersectionIntoWay)
+                        if (!intersections.Contains(intersection))
+                        {
+                            intersections.Add(intersection);
+                        }
+                        if (insertIntersectionIntoWay && !this.Contains(intersection))
                         {
                             this.InsertPointAtIndex(intersection, i + 1);
                             intersectionsAddedToThis++;
                         }
-                        if (insertIntersectionIntoComparisonWay)
+                        if (insertIntersectionIntoComparisonWay && !check.Contains(intersection))
                         {
                             check.InsertPointAtIndex(intersection, j + 1);
                             j++;
@@ -809,13 +830,15 @@ namespace AutomaticWaterMasking
             decimal minY = temp[0].Y;
             decimal maxY = temp[temp.Count - 2].Y;
 
-            if (Way<Point>.SafeLessThan(p.X, minX) || Way<Point>.SafeGreaterThan(p.X, maxX) || Way<Point>.SafeLessThan(p.Y, minY) || Way<Point>.SafeGreaterThan(p.Y, maxY))
+            if (SafeCompare.SafeLessThan(p.X, minX) || SafeCompare.SafeGreaterThan(p.X, maxX) || SafeCompare.SafeLessThan(p.Y, minY) || SafeCompare.SafeGreaterThan(p.Y, maxY))
             {
                 return false;
             }
 
             return true;
         }
+
+        private static int RETRIES = 1000000000;
 
         private static List<Way<Point>> TryToBuildPolygons(Dictionary<Point, List<Way<Point>>> pointToWays, ref Way<Point> startingWay, ref Way<Point> viewPort, ref int startingIdx, ref bool followViewPort, List<Point> intersections)
         {
@@ -833,7 +856,7 @@ namespace AutomaticWaterMasking
                 int timesTriedToClosePolygon = 0;
                 while (!polygon.IsClosedWay())
                 {
-                    if (timesTriedToClosePolygon > 10000)
+                    if (timesTriedToClosePolygon > RETRIES)
                     {
                         throw new Exception("Endless loop trying to close polygon; there is probably something wrong with the data");
                     }
@@ -983,7 +1006,7 @@ namespace AutomaticWaterMasking
                     keepTrying = true;
                 }
 
-                if (numRetries > 10000)
+                if (numRetries > RETRIES)
                 {
                     throw new Exception("Failed building polygons; there is likely something wrong with the data");
                 }
