@@ -14,7 +14,7 @@ namespace AutomaticWaterMaskingTest
             string coastXML = File.ReadAllText(outPath + @"\coast.osm");
             string waterXML = File.ReadAllText(outPath + @"\water.osm");
             string viewPortXML = File.ReadAllText(outPath + @"\viewport.osm");
-            Way<AutomaticWaterMasking.Point> viewPort = new List<Way<AutomaticWaterMasking.Point>>(AreaKMLFromOSMDataCreator.GetWays(viewPortXML, true).Values)[0];
+            Way<AutomaticWaterMasking.Point> viewPort = new List<Way<AutomaticWaterMasking.Point>>(OSMXMLParser.GetWays(viewPortXML, true).Values)[0];
 
             List<Way<AutomaticWaterMasking.Point>> coastWaterPolygons = new List<Way<AutomaticWaterMasking.Point>>();
             List<Way<AutomaticWaterMasking.Point>>[] inlandPolygons = new[] {

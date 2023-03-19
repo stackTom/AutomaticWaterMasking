@@ -424,7 +424,7 @@ namespace AutomaticWaterMasking
         }
     }
 
-    public class AreaKMLFromOSMDataCreator
+    public class OSMXMLParser
     {
         private static Dictionary<string, Point> GetNodeIDsToCoords(XmlDocument d)
         {
@@ -1032,8 +1032,8 @@ namespace AutomaticWaterMasking
         // TODO: the array of List<Way<Point>> is ugly. Find another way to represent the different layers representing alternating land and water.
         public static void CreatePolygons(List<Way<Point>> coastWaterPolygons, List<Way<Point>>[] inlandPolygons, string coastXML, string waterXML, Way<Point> viewPort)
         {
-            Dictionary<string, Way<Point>> coastWays = AreaKMLFromOSMDataCreator.GetWays(coastXML, true);
-            Dictionary<string, Way<Point>> waterWays = AreaKMLFromOSMDataCreator.GetWays(waterXML, true);
+            Dictionary<string, Way<Point>> coastWays = OSMXMLParser.GetWays(coastXML, true);
+            Dictionary<string, Way<Point>> waterWays = OSMXMLParser.GetWays(waterXML, true);
             // remove any that have length 0 (can get when edit with JOSM)
             foreach (string wayID in coastWays.Keys.ToArray())
             {
@@ -1098,7 +1098,7 @@ namespace AutomaticWaterMasking
         private static List<Way<Point>> MergeCoastLines(Dictionary<string, Way<Point>> coastWays)
         {
             List<Way<Point>> toMerge = new List<Way<Point>>(coastWays.Values.ToArray());
-            AreaKMLFromOSMDataCreator.MergeMultipolygonWays(toMerge);
+            OSMXMLParser.MergeMultipolygonWays(toMerge);
 
             return toMerge;
         }
