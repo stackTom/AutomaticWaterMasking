@@ -841,15 +841,13 @@ namespace AutomaticWaterMasking
         private static int BACK_TRACK_RETRIES = 10000;
         private static int CLOSE_WAY_RETRIES = 100000;
 
-        private static List<Way<Point>> TryToBuildPolygons(Dictionary<Point, List<Way<Point>>> pointToWays, ref Way<Point> startingWay, ref Way<Point> viewPort, ref int startingIdx, ref bool followViewPort, List<Point> intersections)
+        private static bool TryToBuildPolygons(List<Way<Point>> polygons, Dictionary<Point, List<Way<Point>>> pointToWays, ref Way<Point> startingWay, ref Way<Point> viewPort, Way<Point> origViewPort, ref int startingIdx, ref bool followViewPort, List<Point> intersections)
         {
-            List<Way<Point>> polygons = new List<Way<Point>>();
             Way<Point> polygon = null;
             int idx = startingIdx;
             polygon = new Way<Point>();
             Way<Point> curWay = startingWay;
             Point curPoint = null;
-            Way<Point> origViewPort = new Way<Point>(viewPort);
             int lastIntersectionsCount = 0;
             while (intersections.Count > 0)
             {
@@ -877,7 +875,7 @@ namespace AutomaticWaterMasking
                         {
                             intersections.Add(p);
                         }
-                        return null;
+                        return false;
                     }
                     if (intersections.Contains(curPoint))
                     {
@@ -971,7 +969,7 @@ namespace AutomaticWaterMasking
                 }
             }
 
-            return polygons;
+            return true;
         }
 
         private static List<Way<Point>> CoastWaysToPolygon(List<Way<Point>> coastWays, Way<Point> viewPort)
@@ -1001,28 +999,22 @@ namespace AutomaticWaterMasking
             int startingIdx = 0;
             Way<Point> startingWay = viewPort;
             bool followViewPort = false;
+            Way<Point> origViewPort = new Way<Point>(viewPort);
 
             int numRetries = 0;
             while (keepTrying)
             {
                 keepTrying = false;
-                List<Way<Point>> newPolys = null;
+                bool newPolys = false;
                 try
                 {
-                    newPolys = TryToBuildPolygons(pointToWays, ref startingWay, ref viewPort, ref startingIdx, ref followViewPort, allIntersections); // copy of intersections in case we need to start again
+                    newPolys = TryToBuildPolygons(polygons, pointToWays, ref startingWay, ref viewPort, origViewPort, ref startingIdx, ref followViewPort, allIntersections); // copy of intersections in case we need to start again
                 }
                 catch (Exception e)
                 {
                     throw e;
                 }
-                if (newPolys != null)
-                {
-                    foreach (Way<Point> w in newPolys)
-                    {
-                        polygons.Add(w);
-                    }
-                }
-                else
+                if (!newPolys)
                 {
                     numRetries++;
                     keepTrying = true;
