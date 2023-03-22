@@ -1055,28 +1055,33 @@ namespace AutomaticWaterMasking
                 {
                     waterWays.Remove(wayID);
                 }
-                if (way.IsClosedWay())
+                // non coast water ways should always be closed polygons
+                // TODO: is this always true? Lake erie, for example, is not closed for some reason.
+                // Not sure if this is bug with your code trying to form water multipolygons, or just something
+                // with the OSM data
+                if (!way.IsClosedWay())
                 {
-                    if (way.relation == "outer")
+                    way.Add(way[way.Count - 1]);
+                }
+                if (way.relation == "outer")
+                {
+                    if (!inlandPolygons[0].Contains(way))
                     {
-                        if (!inlandPolygons[0].Contains(way))
-                        {
-                            inlandPolygons[0].Add(way);
-                        }
+                        inlandPolygons[0].Add(way);
                     }
-                    else if (way.relation == "inner")
+                }
+                else if (way.relation == "inner")
+                {
+                    if (!inlandPolygons[1].Contains(way))
                     {
-                        if (!inlandPolygons[1].Contains(way))
-                        {
-                            inlandPolygons[1].Add(way);
-                        }
+                        inlandPolygons[1].Add(way);
                     }
-                    else if (way.relation == null)
+                }
+                else if (way.relation == null)
+                {
+                    if (!inlandPolygons[2].Contains(way))
                     {
-                        if (!inlandPolygons[2].Contains(way))
-                        {
-                            inlandPolygons[2].Add(way);
-                        }
+                        inlandPolygons[2].Add(way);
                     }
                 }
             }
