@@ -9,31 +9,34 @@ namespace AutomaticWaterMasking
 {
     public static class SafeCompare
     {
-        private static decimal EPSILON = 0.00000000000001m;
-        public static bool SafeLessThan(decimal d1, decimal d2)
+        // OSM is accurate to cm accuracy (7 decimal places lat/lon). So EPSILON with 8 decimal places
+        // means values above 7 decimal places will not be significant
+        private const double EPSILON = 0.00000001;
+        public static bool SafeLessThan(double d1, double d2, double epsilon=EPSILON)
         {
-            return (d1 - d2) < -EPSILON;
+            return (d1 - d2) < -epsilon;
         }
 
-        public static bool SafeGreaterThan(decimal d1, decimal d2)
+        public static bool SafeGreaterThan(double d1, double d2, double epsilon=EPSILON)
         {
-            return (d1 - d2) > EPSILON;
+            return (d1 - d2) > epsilon;
         }
 
-        public static bool SafeEquals(decimal d1, decimal d2)
+        public static bool SafeEquals(double d1, double d2, double epsilon=EPSILON)
         {
-            return Math.Abs(d1 - d2) < EPSILON;
+            return Math.Abs(d1 - d2) < epsilon;
         }
 
     }
 
     public class XYPair
     {
-        public decimal X;
-        public decimal Y;
-        private const int ROUND_TO_DIGITS = 14;
+        public double X;
+        public double Y;
+        // OSM is accurate to 7 decimal places of lat/lon
+        private const int ROUND_TO_DIGITS = 8;
 
-        public XYPair(decimal x, decimal y)
+        public XYPair(double x, double y)
         {
             this.X = x;
             this.Y = y;
@@ -41,8 +44,7 @@ namespace AutomaticWaterMasking
 
         public override string ToString()
         {
-            // G29 basically trims trailing 0's
-            return Decimal.Round(this.Y, ROUND_TO_DIGITS).ToString("G29") + ", " + Decimal.Round(this.X, ROUND_TO_DIGITS).ToString("G29");
+            return double.Round(this.Y, ROUND_TO_DIGITS).ToString("G29") + ", " + double.Round(this.X, ROUND_TO_DIGITS).ToString("G29");
         }
 
         public override bool Equals(object obj)
@@ -60,7 +62,7 @@ namespace AutomaticWaterMasking
 
     public class Point : XYPair
     {
-        public Point(decimal x, decimal y) : base(x, y) { }
+        public Point(double x, double y) : base(x, y) { }
         public override int GetHashCode()
         {
             return base.GetHashCode();
@@ -205,9 +207,9 @@ namespace AutomaticWaterMasking
         {
             public Point p1;
             public Point p2;
-            public decimal A;
-            public decimal B;
-            public decimal C;
+            public double A;
+            public double B;
+            public double C;
 
             public Edge(Point p1, Point p2)
             {
@@ -222,10 +224,10 @@ namespace AutomaticWaterMasking
 
             public bool PointInEdge(Point p)
             {
-                decimal minX = Math.Min(this.p1.X, this.p2.X);
-                decimal maxX = Math.Max(this.p1.X, this.p2.X);
-                decimal minY = Math.Min(this.p1.Y, this.p2.Y);
-                decimal maxY = Math.Max(this.p1.Y, this.p2.Y);
+                double minX = Math.Min(this.p1.X, this.p2.X);
+                double maxX = Math.Max(this.p1.X, this.p2.X);
+                double minY = Math.Min(this.p1.Y, this.p2.Y);
+                double maxY = Math.Max(this.p1.Y, this.p2.Y);
 
                 if (SafeCompare.SafeLessThan(p.X, minX) || SafeCompare.SafeGreaterThan(p.X, maxX) || SafeCompare.SafeLessThan(p.Y, minY) || SafeCompare.SafeGreaterThan(p.Y, maxY))
                 {
@@ -240,15 +242,15 @@ namespace AutomaticWaterMasking
             // https://stackoverflow.com/questions/4543506/algorithm-for-intersection-of-2-lines
             public Point IntersectsWith(Edge e)
             {
-                decimal delta = this.A * e.B - e.A * this.B;
+                double delta = this.A * e.B - e.A * this.B;
 
                 if (delta == 0)
                 {
                     return null;
                 }
 
-                decimal x = (e.B * this.C - this.B * e.C) / delta;
-                decimal y = (this.A * e.C - e.A * this.C) / delta;
+                double x = (e.B * this.C - this.B * e.C) / delta;
+                double y = (this.A * e.C - e.A * this.C) / delta;
                 Point possibleIntersection = new Point(x, y);
 
                 if (this.PointInEdge(possibleIntersection) && e.PointInEdge(possibleIntersection))
@@ -301,8 +303,8 @@ namespace AutomaticWaterMasking
                     return Direction.WestToEast;
                 }
                 // neither lat nor lon are equal, look at the slope
-                decimal dx = this.p2.X - this.p1.X;
-                decimal dy = this.p2.Y - this.p1.Y;
+                double dx = this.p2.X - this.p1.X;
+                double dy = this.p2.Y - this.p1.Y;
                 if (SafeCompare.SafeGreaterThan((dy / dx), 0))
                 {
                     if (SafeCompare.SafeGreaterThan(dy, 0))
@@ -431,8 +433,8 @@ namespace AutomaticWaterMasking
             XmlNodeList nodeTags = d.GetElementsByTagName("node");
             foreach (XmlElement node in nodeTags)
             {
-                decimal lat = Convert.ToDecimal(node.GetAttribute("lat"));
-                decimal lon = Convert.ToDecimal(node.GetAttribute("lon"));
+                double lat = Convert.ToDouble(node.GetAttribute("lat"));
+                double lon = Convert.ToDouble(node.GetAttribute("lon"));
                 string id = node.GetAttribute("id");
                 Point coords = new Point(lon, lat);
                 nodeIDsToCoords.Add(id, coords);
@@ -650,12 +652,12 @@ namespace AutomaticWaterMasking
 
     public struct DownloadArea
     {
-        public decimal startLon;
-        public decimal endLon;
-        public decimal startLat;
-        public decimal endLat;
+        public double startLon;
+        public double endLon;
+        public double startLat;
+        public double endLat;
 
-        public DownloadArea(decimal startLon, decimal endLon, decimal startLat, decimal endLat)
+        public DownloadArea(double startLon, double endLon, double startLat, double endLat)
         {
             this.startLon = startLon;
             this.endLon = endLon;
@@ -663,7 +665,7 @@ namespace AutomaticWaterMasking
             this.endLat = endLat;
         }
 
-        public void addPadding(decimal padding)
+        public void addPadding(double padding)
         {
             this.startLat += padding;
             this.endLat -= padding;
@@ -810,8 +812,8 @@ namespace AutomaticWaterMasking
 
                 return 0;
             });
-            decimal minX = temp[0].X;
-            decimal maxX = temp[temp.Count - 2].X;
+            double minX = temp[0].X;
+            double maxX = temp[temp.Count - 2].X;
 
             temp.Sort(delegate(Point p1, Point p2)
             {
@@ -826,10 +828,17 @@ namespace AutomaticWaterMasking
 
                 return 0;
             });
-            decimal minY = temp[0].Y;
-            decimal maxY = temp[temp.Count - 2].Y;
+            double minY = temp[0].Y;
+            double maxY = temp[temp.Count - 2].Y;
 
-            if (SafeCompare.SafeLessThan(p.X, minX) || SafeCompare.SafeGreaterThan(p.X, maxX) || SafeCompare.SafeLessThan(p.Y, minY) || SafeCompare.SafeGreaterThan(p.Y, maxY))
+            // Not sure why we need this epsilon different than the one above, but we do
+            // if it's equal to one in SafeCompare class, get enough floating point errors
+            // to cause backtrack forever in some tiles such as in 1x1 lat/lon tile at 66,12
+            // These errors lead to this functioning erroneously saying that some points aren't
+            // in the viewport (and I'm sure vice versa can happen too...)
+            // TODO: maybe this epsilon can be used in the SafeCompare class too?
+            const double EPSILON = 0.00000099999999999999999;
+            if (SafeCompare.SafeLessThan(p.X, minX, EPSILON) || SafeCompare.SafeGreaterThan(p.X, maxX, EPSILON) || SafeCompare.SafeLessThan(p.Y, minY, EPSILON) || SafeCompare.SafeGreaterThan(p.Y, maxY, EPSILON))
             {
                 return false;
             }
@@ -1110,7 +1119,7 @@ namespace AutomaticWaterMasking
         }
 
         // these lat long to pixel, and vice versa, formulas, are from FSEarthtiles
-        public static Point LatLongToPixel(Point latLong, decimal startLat, decimal startLong, decimal pixelsPerLongitude, decimal pixelsPerLatitude)
+        public static Point LatLongToPixel(Point latLong, double startLat, double startLong, double pixelsPerLongitude, double pixelsPerLatitude)
         {
             Point vPixelXYCoord = new Point(pixelsPerLongitude * (latLong.X - startLong), pixelsPerLatitude * (startLat - latLong.Y));
 
@@ -1118,18 +1127,18 @@ namespace AutomaticWaterMasking
         }
 
 
-        public static Point CoordToPixel(decimal lat, decimal lon, decimal NWLat, decimal NWLon, decimal pixelsPerLongitude,
-                                    decimal pixelsPerLatitude)
+        public static Point CoordToPixel(double lat, double lon, double NWLat, double NWLon, double pixelsPerLongitude,
+                                    double pixelsPerLatitude)
         {
             Point tempCoord = new Point(lon, lat);
             Point pixel = LatLongToPixel(tempCoord, NWLat, NWLon, pixelsPerLongitude, pixelsPerLatitude);
-            pixel.X -= 0.5m;
-            pixel.Y -= 0.5m;
+            pixel.X -= 0.5;
+            pixel.Y -= 0.5;
 
             return pixel;
         }
 
-        private static void DrawPolygons(Bitmap bmp, Graphics g, SolidBrush b, decimal pixelsPerLon, decimal pixelsPerLat, Point NW, List<Way<Point>> polygons)
+        private static void DrawPolygons(Bitmap bmp, Graphics g, SolidBrush b, double pixelsPerLon, double pixelsPerLat, Point NW, List<Way<Point>> polygons)
         {
             foreach (Way<Point> way in polygons)
             {
@@ -1151,8 +1160,8 @@ namespace AutomaticWaterMasking
         public static Bitmap GetMask(string outPath, int width, int height, Point NW, Point SE, List<Way<Point>> waterPolygons, List<Way<Point>>[] inlandPolygons)
         {
             Bitmap bmp = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
-            decimal pixelsPerLon = Convert.ToDecimal(width) / (SE.X - NW.X);
-            decimal pixelsPerLat = Convert.ToDecimal(height) / (NW.Y - SE.Y);
+            double pixelsPerLon = Convert.ToDouble(width) / (SE.X - NW.X);
+            double pixelsPerLat = Convert.ToDouble(height) / (NW.Y - SE.Y);
 
             using (Graphics g = Graphics.FromImage(bmp))
             {
