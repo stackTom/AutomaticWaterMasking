@@ -1103,8 +1103,8 @@ namespace AutomaticWaterMasking
 
         public static void GetPolygons(List<Way<Point>> coastWaterPolygons, List<Way<Point>>[] inlandPolygons, DownloadArea d, Way<Point> viewPort, string saveLoc)
         {
-            string coastXML = DownloadOsmCoastData(d, saveLoc + @"\coast.osm");
-            string waterXML = DownloadOsmWaterData(d, saveLoc + @"\water.osm");
+            string coastXML = DownloadOsmCoastData(d, saveLoc + Path.DirectorySeparatorChar + "coast.osm");
+            string waterXML = DownloadOsmWaterData(d, saveLoc + Path.DirectorySeparatorChar + "water.osm");
 
             CreatePolygons(coastWaterPolygons, inlandPolygons, coastXML, waterXML, viewPort);
         }
