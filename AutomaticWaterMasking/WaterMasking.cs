@@ -42,7 +42,6 @@ namespace AutomaticWaterMasking
         public override string ToString()
         {
             // G29 basically trims trailing 0's
-
             return Decimal.Round(this.Y, ROUND_TO_DIGITS).ToString("G29") + ", " + Decimal.Round(this.X, ROUND_TO_DIGITS).ToString("G29");
         }
 
@@ -839,7 +838,6 @@ namespace AutomaticWaterMasking
         }
 
         private static int BACK_TRACK_RETRIES = 10000;
-        private static int CLOSE_WAY_RETRIES = 100000;
 
         private static bool TryToBuildPolygons(List<Way<Point>> polygons, Dictionary<Point, List<Way<Point>>> pointToWays, ref Way<Point> startingWay, ref Way<Point> viewPort, Way<Point> origViewPort, ref int startingIdx, ref bool followViewPort, List<Point> intersections)
         {
@@ -848,14 +846,14 @@ namespace AutomaticWaterMasking
             polygon = new Way<Point>();
             Way<Point> curWay = startingWay;
             Point curPoint = null;
-            int lastIntersectionsCount = 0;
+            // if a polygon has more points comprising it than all the points available, we have a problem
+            int CLOSE_WAY_RETRIES = pointToWays.Count;
             while (intersections.Count > 0)
             {
                 List<Point> intersectionsRemoved = new List<Point>();
-                int noprogressClosingPolygon = 0;
                 while (!polygon.IsClosedWay())
                 {
-                    if (noprogressClosingPolygon > CLOSE_WAY_RETRIES)
+                    if (polygon.Count > CLOSE_WAY_RETRIES)
                     {
                         throw new Exception("Endless loop trying to close polygon; there is probably something wrong with the data");
                     }
@@ -934,15 +932,6 @@ namespace AutomaticWaterMasking
                     idx = curWay.IndexOf(curPoint);
 
                     idx = (idx + 1) % curWay.Count;
-                    if (lastIntersectionsCount == intersections.Count)
-                    {
-                        noprogressClosingPolygon++;
-                    }
-                    else
-                    {
-                        noprogressClosingPolygon = 0;
-                    }
-                    lastIntersectionsCount = intersections.Count;
                 }
                 polygons.Add(polygon);
                 foreach (Point p in polygon)
