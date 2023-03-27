@@ -848,6 +848,53 @@ namespace AutomaticWaterMasking
 
         private static int BACK_TRACK_RETRIES = 10000;
 
+        private static bool PointTouchesViewPortOutside(Way<Point> way, Point point, Way<Point> viewPort)
+        {
+            int idx = way.IndexOf(point);
+
+            int nextIdx = (idx + 1) % way.Count;
+            Point nextPoint = way[nextIdx];
+            int prevIdx = idx - 1 >= 0 ? idx - 1 : way.Count - 1;
+            Point prevPoint = way[prevIdx];
+
+            if (!viewPort.Contains(point))
+            {
+                return false;
+            }
+            if (!PointInViewport(nextPoint, viewPort) && !PointInViewport(prevPoint, viewPort))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool PointTouchesViewPortInside(Way<Point> way, Point point, Way<Point> viewPort)
+        {
+            int idx = way.IndexOf(point);
+
+            int nextIdx = (idx + 1) % way.Count;
+            Point nextPoint = way[nextIdx];
+            int prevIdx = idx - 1 >= 0 ? idx - 1 : way.Count - 1;
+            Point prevPoint = way[prevIdx];
+
+            if (!viewPort.Contains(point))
+            {
+                return false;
+            }
+            if (PointInViewport(nextPoint, viewPort) && PointInViewport(prevPoint, viewPort))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool PointTouchesButDoesntIntersectViewPort(Way<Point> way, Point point, Way<Point> viewPort)
+        {
+            return PointTouchesViewPortInside(way, point, viewPort) || PointTouchesViewPortOutside(way, point, viewPort);
+        }
+
         // remove intersections where a way intersects with the viewPort at a single point
         private static void CleanSinglePointIntersections(Dictionary<Point, List<Way<Point>>> pointToWays, Way<Point> viewPort, List<Point> intersections)
         {
@@ -869,13 +916,7 @@ namespace AutomaticWaterMasking
                         }
                     }
 
-                    int idx = otherWay.IndexOf(curPoint);
-
-                    int nextIdx = (idx + 1) % otherWay.Count;
-                    Point nextPoint = otherWay[nextIdx];
-                    int prevIdx = idx - 1 >= 0 ? idx - 1 : otherWay.Count - 1;
-                    Point prevPoint = otherWay[prevIdx];
-                    if (!PointInViewport(nextPoint, viewPort) && !PointInViewport(prevPoint, viewPort))
+                    if (PointTouchesViewPortOutside(otherWay, curPoint, viewPort))
                     {
                         intersections.Remove(viewPort[i]);
                     }
@@ -952,7 +993,7 @@ namespace AutomaticWaterMasking
                     }
                     else if (waysContainingPoint.Contains(viewPort))
                     {
-                        if (followViewPort)
+                        if (followViewPort && !PointTouchesButDoesntIntersectViewPort(curWay, curPoint, viewPort))
                         {
                             curWay = viewPort;
                         }
