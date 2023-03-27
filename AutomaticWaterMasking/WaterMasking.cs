@@ -473,10 +473,18 @@ namespace AutomaticWaterMasking
                 List<string> nodIDs = kv.Value;
                 Way<Point> way = new Way<Point>();
                 way.wayID = wayID;
+                string lastNodeID = "";
                 foreach (string id in nodIDs)
                 {
-                    Point coords = nodeIDsToCoords[id];
-                    way.Add(coords);
+                    // OSM sometimes has ways which have the same point repeated multiple times, right after each other, unnecessarily
+                    // This breaks the coast water polys generation logic for obvious reasons. This if statement prevents these repetitive points
+                    // from being incorporated into the ways... only 1 instance of the point will be incorporated
+                    if (id != lastNodeID)
+                    {
+                        Point coords = nodeIDsToCoords[id];
+                        way.Add(coords);
+                    }
+                    lastNodeID = id;
                 }
                 wayIDsToways.Add(wayID, way);
             }
