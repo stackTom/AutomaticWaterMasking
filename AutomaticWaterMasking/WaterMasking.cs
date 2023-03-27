@@ -29,6 +29,7 @@ namespace AutomaticWaterMasking
 
     public class XYPair
     {
+        // we use decimals's because using double's leads to floating point errors (sometimes even architecture dependent - ie works on M1 mac but not on x64 windows...)
         public decimal X;
         public decimal Y;
         private const int ROUND_TO_DIGITS = 14;
@@ -739,7 +740,7 @@ namespace AutomaticWaterMasking
             return FixOSM(contents);
         }
 
-        private static string DownloadOsmWaterData(DownloadArea d, string saveLoc)
+        public static string DownloadOsmWaterData(DownloadArea d, string saveLoc)
         {
             string[] waterQueries = { "rel[\"natural\"=\"water\"]", "rel[\"waterway\"=\"riverbank\"]", "way[\"natural\"=\"water\"]", "way[\"waterway\"=\"riverbank\"]", "way[\"waterway\"=\"dock\"]" };
             string waterOSM = null;
@@ -758,7 +759,7 @@ namespace AutomaticWaterMasking
             return waterOSM;
         }
         // http://overpass-api.de/api/interpreter?data=(way["natural"="coastline"](23, -83, 24, -82););(._;>>;);out meta;
-        private static string DownloadOsmCoastData(DownloadArea d, string saveLoc)
+        public static string DownloadOsmCoastData(DownloadArea d, string saveLoc)
         {
             string[] coastQueries = { "way[\"natural\"=\"coastline\"]" };
             string coastOSM = null;
@@ -839,6 +840,41 @@ namespace AutomaticWaterMasking
 
         private static int BACK_TRACK_RETRIES = 10000;
 
+        // remove intersections where a way intersects with the viewPort at a single point
+        private static void CleanSinglePointIntersections(Dictionary<Point, List<Way<Point>>> pointToWays, Way<Point> viewPort, List<Point> intersections)
+        {
+            for (int i = 0; i < viewPort.Count; i++)
+            {
+                Point curPoint = viewPort[i];
+                if (intersections.Contains(curPoint))
+                {
+                    List<Way<Point>> waysContainingPoint = pointToWays[curPoint];
+                    Way<Point> otherWay = null;
+
+                    // choose the other way that is not the viewPort
+                    foreach (Way<Point> w in waysContainingPoint)
+                    {
+                        if (!w.Equals(viewPort))
+                        {
+                            otherWay = w;
+                            break;
+                        }
+                    }
+
+                    int idx = otherWay.IndexOf(curPoint);
+
+                    int nextIdx = (idx + 1) % otherWay.Count;
+                    Point nextPoint = otherWay[nextIdx];
+                    int prevIdx = idx - 1 >= 0 ? idx - 1 : otherWay.Count - 1;
+                    Point prevPoint = otherWay[prevIdx];
+                    if (!PointInViewport(nextPoint, viewPort) && !PointInViewport(prevPoint, viewPort))
+                    {
+                        intersections.Remove(viewPort[i]);
+                    }
+                }
+            }
+        }
+
         private static bool TryToBuildPolygons(List<Way<Point>> polygons, Dictionary<Point, List<Way<Point>>> pointToWays, ref Way<Point> startingWay, ref Way<Point> viewPort, Way<Point> origViewPort, ref int startingIdx, ref bool followViewPort, List<Point> intersections)
         {
             Way<Point> polygon = null;
@@ -848,6 +884,7 @@ namespace AutomaticWaterMasking
             Point curPoint = null;
             // if a polygon has more points comprising it than all the points available, we have a problem
             int CLOSE_WAY_RETRIES = pointToWays.Count;
+            CleanSinglePointIntersections(pointToWays, viewPort, intersections);
             while (intersections.Count > 0)
             {
                 List<Point> intersectionsRemoved = new List<Point>();
@@ -868,6 +905,7 @@ namespace AutomaticWaterMasking
                         }
                         startingWay = curWay;
                         followViewPort = true;
+
                         // reset, as we might need them since we didn't form a valid polygon
                         foreach (Point p in intersectionsRemoved)
                         {
@@ -1074,6 +1112,7 @@ namespace AutomaticWaterMasking
                     }
                 }
             }
+
 
             List<Way<Point>> mergedCoasts = MergeCoastLines(coastWays);
 
