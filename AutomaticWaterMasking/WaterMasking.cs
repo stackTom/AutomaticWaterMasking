@@ -705,7 +705,7 @@ namespace AutomaticWaterMasking
         {
             bool keepTrying = false;
             string contents = null;
-            int sleepTime = 1;
+            int sleepTime = 1; // in seconds
             do
             {
                 foreach (string server in overPassServers)
@@ -727,7 +727,7 @@ namespace AutomaticWaterMasking
                         {
                             Console.WriteLine("Download failed using " + server + "... trying new overpass server in " + sleepTime + " seconds");
                             keepTrying = true;
-                            System.Threading.Thread.Sleep(sleepTime);
+                            System.Threading.Thread.Sleep(sleepTime * 1000);
                         }
                     }
                 }
