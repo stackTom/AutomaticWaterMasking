@@ -919,6 +919,9 @@ namespace AutomaticWaterMasking
                     if (PointTouchesViewPortOutside(otherWay, curPoint, viewPort))
                     {
                         intersections.Remove(viewPort[i]);
+                        viewPort.Remove(curPoint);
+                        otherWay.Remove(curPoint);
+                        pointToWays.Remove(curPoint);
                     }
                 }
             }
@@ -933,7 +936,6 @@ namespace AutomaticWaterMasking
             Point curPoint = null;
             // if a polygon has more points comprising it than all the points available, we have a problem
             int CLOSE_WAY_RETRIES = pointToWays.Count;
-            CleanSinglePointIntersections(pointToWays, origViewPort, intersections);
             while (intersections.Count > 0)
             {
                 List<Point> intersectionsRemoved = new List<Point>();
@@ -1075,6 +1077,7 @@ namespace AutomaticWaterMasking
             int startingIdx = 0;
             Way<Point> startingWay = viewPort;
             bool followViewPort = false;
+            CleanSinglePointIntersections(pointToWays, viewPort, allIntersections);
             Way<Point> origViewPort = new Way<Point>(viewPort);
 
             int numRetries = 0;
@@ -1161,7 +1164,6 @@ namespace AutomaticWaterMasking
                     }
                 }
             }
-
 
             List<Way<Point>> mergedCoasts = MergeCoastLines(coastWays);
 
