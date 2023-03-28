@@ -933,7 +933,7 @@ namespace AutomaticWaterMasking
             Point curPoint = null;
             // if a polygon has more points comprising it than all the points available, we have a problem
             int CLOSE_WAY_RETRIES = pointToWays.Count;
-            CleanSinglePointIntersections(pointToWays, viewPort, intersections);
+            CleanSinglePointIntersections(pointToWays, origViewPort, intersections);
             while (intersections.Count > 0)
             {
                 List<Point> intersectionsRemoved = new List<Point>();
@@ -993,7 +993,7 @@ namespace AutomaticWaterMasking
                     }
                     else if (waysContainingPoint.Contains(viewPort))
                     {
-                        if (followViewPort && !PointTouchesButDoesntIntersectViewPort(curWay, curPoint, viewPort))
+                        if (followViewPort && !PointTouchesButDoesntIntersectViewPort(curWay, curPoint, origViewPort))
                         {
                             curWay = viewPort;
                         }
