@@ -42,6 +42,7 @@ public class AutomaticWaterMaskingTest
                     return;
                 }
             }
+            startAt = -180;
         }
     }
 }
