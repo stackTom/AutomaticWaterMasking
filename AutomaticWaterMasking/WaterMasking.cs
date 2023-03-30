@@ -1050,11 +1050,32 @@ namespace AutomaticWaterMasking
             return true;
         }
 
-        private static List<Way<Point>> CoastWaysToPolygon(List<Way<Point>> coastWays, Way<Point> viewPort)
+        // returns true if a way is circular, and only touches the viewport at singular points (rather than cutting it).
+        private static bool CircularWayOnlyTouchesViewPort(Way<Point> way, List<Point> intersections, Way<Point> viewPort)
+        {
+            if (!way.IsClosedWay())
+            {
+                throw new Exception("Way must be circular inside CircularWayOnlyTouchesViewPort.");
+            }
+
+            foreach (Point p in intersections)
+            {
+                if (!PointTouchesViewPortInside(way, p, viewPort))
+                {
+                    return false;
+                }
+            }
+
+            // all of the intersections only touch the viewport inside, not fully cut it
+            return true;
+        }
+
+        private static List<Way<Point>> CoastWaysToPolygon(List<Way<Point>> coastWays, Way<Point> viewPort, List<Way<Point>>[] inlandPolygons)
         {
             List<Way<Point>> polygons = new List<Way<Point>>();
             List<Point> allIntersections = new List<Point>();
             Dictionary<Point, List<Way<Point>>> pointToWays = new Dictionary<Point, List<Way<Point>>>();
+            List<Way<Point>> waysShouldBeLandPolygons = new List<Way<Point>>();
 
             foreach (Way<Point> way in coastWays)
             {
@@ -1063,13 +1084,40 @@ namespace AutomaticWaterMasking
                 {
                     continue;
                 }
-                foreach (Point p in intersections)
+                if (way.IsClosedWay())
                 {
-                    allIntersections.Add(p);
+                    // if the way is circular and only touches the viewport at singular points (rather than cutting through it)
+                    // treat these was as land polygons
+                    if (!CircularWayOnlyTouchesViewPort(way, intersections, viewPort))
+                    {
+                        foreach (Point p in intersections)
+                        {
+                            allIntersections.Add(p);
+                        }
+                        PopulatePointToWaysDict(pointToWays, way);
+                    }
+                    else
+                    {
+                        waysShouldBeLandPolygons.Add(way);
+                    }
                 }
-                PopulatePointToWaysDict(pointToWays, way);
-
+                else
+                {
+                    foreach (Point p in intersections)
+                    {
+                        allIntersections.Add(p);
+                    }
+                    PopulatePointToWaysDict(pointToWays, way);
+                }
             }
+            // now, remove all those ways whose intersections only touch the viewport at a single point, but do not fully traverse it
+            // as these should be treated as land polygons. Otherwise, breaks our sea polygon creation logic and get endless loops
+            foreach (Way<Point> way in waysShouldBeLandPolygons)
+            {
+                coastWays.Remove(way);
+                inlandPolygons[1].Add(way);
+            }
+
             Way<Point> viewPortWithoutLastPoint = new Way<Point>(viewPort);
             viewPortWithoutLastPoint.RemoveAt(viewPort.Count - 1);
             PopulatePointToWaysDict(pointToWays, viewPortWithoutLastPoint);
@@ -1167,7 +1215,7 @@ namespace AutomaticWaterMasking
 
             List<Way<Point>> mergedCoasts = MergeCoastLines(coastWays);
 
-            List<Way<Point>> mergedWaterPolys = CoastWaysToPolygon(mergedCoasts, viewPort);
+            List<Way<Point>> mergedWaterPolys = CoastWaysToPolygon(mergedCoasts, viewPort, inlandPolygons);
             // add the water polygons of coast ways which intersect with the view port
             foreach (Way<Point> way in mergedWaterPolys)
             {
