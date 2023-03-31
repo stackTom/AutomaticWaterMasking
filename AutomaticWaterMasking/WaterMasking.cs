@@ -995,7 +995,8 @@ namespace AutomaticWaterMasking
                     }
                     else if (waysContainingPoint.Contains(viewPort))
                     {
-                        if (followViewPort && !PointTouchesButDoesntIntersectViewPort(curWay, curPoint, origViewPort))
+                        bool firstOrLastPoint = curPoint.Equals(curWay[0]) || curPoint.Equals(curWay[curWay.Count - 1]);
+                        if (followViewPort && (!PointTouchesButDoesntIntersectViewPort(curWay, curPoint, origViewPort) || firstOrLastPoint))
                         {
                             curWay = viewPort;
                         }
