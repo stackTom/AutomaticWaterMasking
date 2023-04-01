@@ -854,7 +854,8 @@ namespace AutomaticWaterMasking
 
             int nextIdx = (idx + 1) % way.Count;
             Point nextPoint = way[nextIdx];
-            int prevIdx = idx - 1 >= 0 ? idx - 1 : way.Count - 1;
+            // way.Count - 2 because first and last points are equal...
+            int prevIdx = idx - 1 >= 0 ? idx - 1 : way.Count - 2;
             Point prevPoint = way[prevIdx];
 
             if (!viewPort.Contains(point))
@@ -875,7 +876,8 @@ namespace AutomaticWaterMasking
 
             int nextIdx = (idx + 1) % way.Count;
             Point nextPoint = way[nextIdx];
-            int prevIdx = idx - 1 >= 0 ? idx - 1 : way.Count - 1;
+            // way.Count - 2 because first and last points are equal...
+            int prevIdx = idx - 1 >= 0 ? idx - 1 : way.Count - 2;
             Point prevPoint = way[prevIdx];
 
             if (!viewPort.Contains(point))
