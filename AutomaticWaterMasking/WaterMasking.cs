@@ -1019,6 +1019,12 @@ namespace AutomaticWaterMasking
                                 }
                             }
                         }
+                        if (pointTouchesButDoesntIntersectViewPort)
+                        {
+                            // will be reset to true right below :) so we can follow the viewport at the next intersection
+                            // if the next intersection isn't another point that just touches of course...
+                            followViewPort = false;
+                        }
                         followViewPort = !followViewPort;
                     }
                     else
