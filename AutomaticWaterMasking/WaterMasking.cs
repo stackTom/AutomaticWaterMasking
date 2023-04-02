@@ -972,6 +972,25 @@ namespace AutomaticWaterMasking
                         }
                         return false;
                     }
+                    // handle consecutive points on the viewport when it and the way are opposite each other
+                    // this would orinarily cause a backtrack, but because there are consecutive points
+                    // on the viewport, we just get an endless loop between the viewport and the other
+                    // way. we fix this by seeing if we if we have removed the current intersection in question
+                    // previously. in that case, we have seen it already
+                    // in that case, we are in a loop with the viewPort and the other way, which
+                    // has consecutive points on the viewport, but these aren't cleaned up because
+                    // this way goes opposite the viewport(aka would force a backtrack if it wasn't
+                    // for these consecutive points).The way we deal with this is forcing a backtrack
+                    // by setting inLoopForceBacktrack to true, which will make the code follow the other
+                    // way instead of the viewport once the point is reached.This will force a backtrack, and we will essentially
+                    // remove these points on the viewport by successive backtracks because they won't
+                    // be in the intersectionsRemoved list
+                    bool inLoopForceBacktrack = false;
+                    if (intersectionsRemoved.Contains(curPoint))
+                    {
+                        intersectionsRemoved.Remove(curPoint);
+                        inLoopForceBacktrack = true;
+                    }
                     if (intersections.Contains(curPoint))
                     {
                         intersections.Remove(curPoint);
@@ -991,6 +1010,7 @@ namespace AutomaticWaterMasking
                             nextPoint = curWay[nextIdx];
                         }
                     }
+
                     polygon.Add(curPoint);
                     List<Way<Point>> waysContainingPoint = pointToWays[curPoint];
                     if (waysContainingPoint.Count == 0)
@@ -1005,7 +1025,7 @@ namespace AutomaticWaterMasking
                     {
                         bool firstOrLastPoint = curPoint.Equals(curWay[0]) || curPoint.Equals(curWay[curWay.Count - 1]);
                         bool pointTouchesButDoesntIntersectViewPort = PointTouchesButDoesntIntersectViewPort(curWay, curPoint, origViewPort);
-                        if (followViewPort && (!pointTouchesButDoesntIntersectViewPort || firstOrLastPoint))
+                        if (followViewPort && !inLoopForceBacktrack && (!pointTouchesButDoesntIntersectViewPort || firstOrLastPoint))
                         {
                             curWay = viewPort;
                         }
