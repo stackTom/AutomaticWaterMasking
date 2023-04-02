@@ -902,36 +902,46 @@ namespace AutomaticWaterMasking
             return PointTouchesViewPortInside(way, point, viewPort) || PointTouchesViewPortOutside(way, point, viewPort);
         }
 
-        // remove intersections where a way intersects with the viewPort at a single point
-        private static void CleanSinglePointIntersections(Dictionary<Point, List<Way<Point>>> pointToWays, Way<Point> viewPort, List<Point> intersections)
+        private static bool PointOnViewPortEdge(Way<Point> viewPort, Point p)
         {
             for (int i = 0; i < viewPort.Count; i++)
             {
-                Point curPoint = viewPort[i];
-                if (intersections.Contains(curPoint))
+                Point v1 = viewPort[i];
+                Decimal dx = Math.Abs(v1.X - p.X);
+                Decimal dy = Math.Abs(v1.Y - p.Y);
+
+                if (dx == 0 || dy == 0)
                 {
-                    List<Way<Point>> waysContainingPoint = pointToWays[curPoint];
-                    Way<Point> otherWay = null;
-
-                    // choose the other way that is not the viewPort
-                    foreach (Way<Point> w in waysContainingPoint)
-                    {
-                        if (!w.Equals(viewPort))
-                        {
-                            otherWay = w;
-                            break;
-                        }
-                    }
-
-                    if (PointTouchesViewPortOutside(otherWay, curPoint, viewPort))
-                    {
-                        intersections.Remove(viewPort[i]);
-                        viewPort.Remove(curPoint);
-                        otherWay.Remove(curPoint);
-                        pointToWays.Remove(curPoint);
-                    }
+                    return true;
                 }
             }
+
+            return false;
+        }
+
+        private static void CleanExtraNonIntersectionPointsOnViewPort(Way<Point> way, Way<Point> viewPort, List<Point> intersections)
+        {
+            for (int i = 0; i < way.Count; i++)
+            {
+                Point p = way[i];
+                if (PointOnViewPortEdge(viewPort, p) && !intersections.Contains(p))
+                {
+                    way.RemoveAt(i);
+                }
+            }
+        }
+
+        private static bool WayOutsideViewPort(Way<Point> way, Way<Point> viewPort, List<Point> intersections)
+        {
+            foreach (Point p in way)
+            {
+                if (PointInViewport(p, viewPort) && !intersections.Contains(p) && !PointOnViewPortEdge(viewPort, p))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private static bool TryToBuildPolygons(List<Way<Point>> polygons, Dictionary<Point, List<Way<Point>>> pointToWays, ref Way<Point> startingWay, ref Way<Point> viewPort, Way<Point> origViewPort, ref int startingIdx, ref bool followViewPort, ref bool backtracked, List<Point> intersections)
@@ -1065,6 +1075,7 @@ namespace AutomaticWaterMasking
                     }
                 }
                 polygons.Add(polygon);
+
                 foreach (Point p in polygon)
                 {
                     if (!intersectionsNotToRemove.Contains(p))
@@ -1130,7 +1141,20 @@ namespace AutomaticWaterMasking
                 {
                     continue;
                 }
-                if (way.IsClosedWay())
+                CleanExtraNonIntersectionPointsOnViewPort(way, viewPort, intersections);
+                if (WayOutsideViewPort(way, viewPort, intersections))
+                {
+                    foreach (Point p in intersections)
+                    {
+                        viewPort.Remove(p);
+                        way.Remove(p);
+                    }
+                    // do this to remove the way from the coastWays list.
+                    // won't be actually made into one of the other polygons if not closed
+                    // even if it is closed but it's outside the viewport, it won't matter
+                    waysShouldBeLandPolygons.Add(way);
+                }
+                else if (way.IsClosedWay())
                 {
                     // if the way is circular and only touches the viewport at singular points (rather than cutting through it)
                     // treat these was as land polygons
@@ -1161,7 +1185,10 @@ namespace AutomaticWaterMasking
             foreach (Way<Point> way in waysShouldBeLandPolygons)
             {
                 coastWays.Remove(way);
-                inlandPolygons[1].Add(way);
+                if (way.IsClosedWay())
+                {
+                    inlandPolygons[1].Add(way);
+                }
             }
 
             Way<Point> viewPortWithoutLastPoint = new Way<Point>(viewPort);
@@ -1172,7 +1199,6 @@ namespace AutomaticWaterMasking
             Way<Point> startingWay = viewPort;
             bool followViewPort = false;
             bool backtracked = false;
-            CleanSinglePointIntersections(pointToWays, viewPort, allIntersections);
             Way<Point> origViewPort = new Way<Point>(viewPort);
 
             int numRetries = 0;
