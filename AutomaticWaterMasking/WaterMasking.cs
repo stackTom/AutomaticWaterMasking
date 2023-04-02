@@ -862,7 +862,9 @@ namespace AutomaticWaterMasking
             {
                 return false;
             }
-            if (!PointInViewport(nextPoint, viewPort) && !PointInViewport(prevPoint, viewPort))
+            bool prevPointInViewPort = PointInViewport(prevPoint, viewPort);
+            bool nextPointInViewPort = PointInViewport(nextPoint, viewPort);
+            if (!nextPointInViewPort && !prevPointInViewPort)
             {
                 return true;
             }
@@ -884,7 +886,9 @@ namespace AutomaticWaterMasking
             {
                 return false;
             }
-            if (PointInViewport(nextPoint, viewPort) && PointInViewport(prevPoint, viewPort))
+            bool prevPointInViewPort = PointInViewport(prevPoint, viewPort);
+            bool nextPointInViewPort = PointInViewport(nextPoint, viewPort);
+            if (nextPointInViewPort && prevPointInViewPort)
             {
                 return true;
             }
@@ -975,17 +979,23 @@ namespace AutomaticWaterMasking
                         }
                         startingWay = curWay;
                         followViewPort = true;
-                        if (inLoopForceBacktrack)
-                        {
-                            curWay.RemoveAt(startingIdx);
-                            startingIdx--;
-                        }
 
                         // reset, as we might need them since we didn't form a valid polygon
                         foreach (Point p in intersectionsRemoved)
                         {
                             intersections.Add(p);
                         }
+                        if (inLoopForceBacktrack)
+                        {
+                            curWay.RemoveAt(startingIdx);
+                            startingIdx--;
+                            Point p = curWay[startingIdx];
+                            if (!intersectionsNotToRemove.Contains(p))
+                            {
+                                intersections.Remove(curWay[startingIdx]);
+                            }
+                        }
+
                         return false;
                     }
                     // handle consecutive points on the viewport when it and the other way are opposite each other
@@ -1027,25 +1037,42 @@ namespace AutomaticWaterMasking
                     }
                     else if (waysContainingPoint.Contains(viewPort))
                     {
+                        Way<Point> otherWay = null;
+                        // choose the other way that is not the viewPort
+                        foreach (Way<Point> w in waysContainingPoint)
+                        {
+                            if (!w.Equals(viewPort))
+                            {
+                                otherWay = w;
+                                break;
+                            }
+                        }
                         bool firstOrLastPoint = curPoint.Equals(curWay[0]) || curPoint.Equals(curWay[curWay.Count - 1]);
-                        bool pointTouchesButDoesntIntersectViewPort = PointTouchesButDoesntIntersectViewPort(curWay, curPoint, origViewPort) && !backtracked;
-                        if (followViewPort && !inLoopForceBacktrack && (!pointTouchesButDoesntIntersectViewPort || firstOrLastPoint))
+                        bool pointTouchesButDoesntIntersectViewPort = PointTouchesButDoesntIntersectViewPort(curWay, curPoint, origViewPort);
+                        bool shouldNotFollowViewPort = pointTouchesButDoesntIntersectViewPort;
+                        if (backtracked)
+                        {
+                            int i = otherWay.IndexOf(curPoint);
+                            Point next = otherWay[(i + 1) % otherWay.Count];
+                            if (PointInViewport(next, viewPort))
+                            {
+                                shouldNotFollowViewPort = true;
+                            }
+                            else
+                            {
+                                shouldNotFollowViewPort = false;
+                            }
+                        }
+
+                        if (followViewPort && !inLoopForceBacktrack && (!shouldNotFollowViewPort || firstOrLastPoint))
                         {
                             curWay = viewPort;
                         }
                         else
                         {
-                            // choose the other way that is not the viewPort
-                            foreach (Way<Point> w in waysContainingPoint)
-                            {
-                                if (!w.Equals(viewPort))
-                                {
-                                    curWay = w;
-                                    break;
-                                }
-                            }
+                            curWay = otherWay;
                         }
-                        if (pointTouchesButDoesntIntersectViewPort)
+                        if (shouldNotFollowViewPort)
                         {
                             // will be reset to true right below :) so we can follow the viewport at the next intersection
                             // if the next intersection isn't another point that just touches of course...
