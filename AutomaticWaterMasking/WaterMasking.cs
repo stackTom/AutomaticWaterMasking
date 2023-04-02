@@ -1012,17 +1012,6 @@ namespace AutomaticWaterMasking
 
                         int nextIdx = (idx + 1) % curWay.Count;
                         Point nextPoint = curWay[nextIdx];
-                        // way's which have multiple consecutive points on the viewport are problematic and break this algorithm;
-                        // remove these points from the intersection array as these ways will either be ignored (if the viewport
-                        // and way are opposite direction), or they will be incorporated into the polygon eventually (if they are the
-                        // same direction)
-                        while (!curWay.Equals(viewPort) && intersections.Contains(nextPoint))
-                        {
-                            intersections.Remove(nextPoint);
-                            intersectionsRemoved.Add(nextPoint);
-                            nextIdx = (nextIdx + 1) % curWay.Count;
-                            nextPoint = curWay[nextIdx];
-                        }
                     }
 
                     polygon.Add(curPoint);
