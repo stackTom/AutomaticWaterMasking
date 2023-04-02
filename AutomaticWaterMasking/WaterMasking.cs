@@ -978,6 +978,7 @@ namespace AutomaticWaterMasking
                         if (inLoopForceBacktrack)
                         {
                             curWay.RemoveAt(startingIdx);
+                            startingIdx--;
                         }
 
                         // reset, as we might need them since we didn't form a valid polygon
@@ -1027,7 +1028,7 @@ namespace AutomaticWaterMasking
                     else if (waysContainingPoint.Contains(viewPort))
                     {
                         bool firstOrLastPoint = curPoint.Equals(curWay[0]) || curPoint.Equals(curWay[curWay.Count - 1]);
-                        bool pointTouchesButDoesntIntersectViewPort = PointTouchesButDoesntIntersectViewPort(curWay, curPoint, origViewPort);
+                        bool pointTouchesButDoesntIntersectViewPort = PointTouchesButDoesntIntersectViewPort(curWay, curPoint, origViewPort) && !backtracked;
                         if (followViewPort && !inLoopForceBacktrack && (!pointTouchesButDoesntIntersectViewPort || firstOrLastPoint))
                         {
                             curWay = viewPort;
