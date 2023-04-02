@@ -971,7 +971,7 @@ namespace AutomaticWaterMasking
                         startingIdx = idx - 1;
                         if (startingIdx == -1)
                         {
-                            startingIdx = curWay.Count - 1;
+                            startingIdx = curWay.Count - 2;
                         }
                         startingWay = curWay;
                         followViewPort = true;
