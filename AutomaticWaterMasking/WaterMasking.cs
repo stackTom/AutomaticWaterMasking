@@ -1073,6 +1073,7 @@ namespace AutomaticWaterMasking
                     idx = (idx + 1) % curWay.Count;
                     if (backtracked && PointTouchesButDoesntIntersectViewPort(curWay, curPoint, origViewPort))
                     {
+                        backtracked = false;
                         intersections.Add(curPoint);
                         intersectionsRemoved.Remove(curPoint);
                         intersectionsNotToRemove.Add(curPoint);
