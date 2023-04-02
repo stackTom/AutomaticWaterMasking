@@ -943,7 +943,7 @@ namespace AutomaticWaterMasking
             Point curPoint = null;
             // if a polygon has more points comprising it than all the points available, we have a problem
             int CLOSE_WAY_RETRIES = pointToWays.Count;
-            while (intersections.Count > 0)
+            while (intersections.Count > 1)
             {
                 List<Point> intersectionsRemoved = new List<Point>();
                 List<Point> intersectionsNotToRemove = new List<Point>();
@@ -972,15 +972,15 @@ namespace AutomaticWaterMasking
                         }
                         return false;
                     }
-                    // handle consecutive points on the viewport when it and the way are opposite each other
-                    // this would orinarily cause a backtrack, but because there are consecutive points
+                    // handle consecutive points on the viewport when it and the other way are opposite each other
+                    // this would ordinarily cause a backtrack, but because there are consecutive points
                     // on the viewport, we just get an endless loop between the viewport and the other
-                    // way. we fix this by seeing if we if we have removed the current intersection in question
+                    // way. we fix this by seeing if we have removed the current intersection in question
                     // previously. in that case, we have seen it already
                     // in that case, we are in a loop with the viewPort and the other way, which
                     // has consecutive points on the viewport, but these aren't cleaned up because
-                    // this way goes opposite the viewport(aka would force a backtrack if it wasn't
-                    // for these consecutive points).The way we deal with this is forcing a backtrack
+                    // this way goes opposite the viewport (aka would force a backtrack if it wasn't
+                    // for these consecutive points). The way we deal with this is forcing a backtrack
                     // by setting inLoopForceBacktrack to true, which will make the code follow the other
                     // way instead of the viewport once the point is reached.This will force a backtrack, and we will essentially
                     // remove these points on the viewport by successive backtracks because they won't
