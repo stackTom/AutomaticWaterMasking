@@ -957,6 +957,7 @@ namespace AutomaticWaterMasking
             {
                 List<Point> intersectionsRemoved = new List<Point>();
                 List<Point> intersectionsNotToRemove = new List<Point>();
+                bool inLoopForceBacktrack = false;
                 while (!polygon.IsClosedWay())
                 {
                     if (polygon.Count > CLOSE_WAY_RETRIES)
@@ -974,6 +975,10 @@ namespace AutomaticWaterMasking
                         }
                         startingWay = curWay;
                         followViewPort = true;
+                        if (inLoopForceBacktrack)
+                        {
+                            curWay.RemoveAt(startingIdx);
+                        }
 
                         // reset, as we might need them since we didn't form a valid polygon
                         foreach (Point p in intersectionsRemoved)
@@ -995,7 +1000,6 @@ namespace AutomaticWaterMasking
                     // way instead of the viewport once the point is reached.This will force a backtrack, and we will essentially
                     // remove these points on the viewport by successive backtracks because they won't
                     // be in the intersectionsRemoved list
-                    bool inLoopForceBacktrack = false;
                     if (intersectionsRemoved.Contains(curPoint))
                     {
                         intersectionsRemoved.Remove(curPoint);
