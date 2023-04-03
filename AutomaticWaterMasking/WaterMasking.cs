@@ -948,7 +948,108 @@ namespace AutomaticWaterMasking
             return true;
         }
 
-        private static bool TryToBuildPolygons(List<Way<Point>> polygons, Dictionary<Point, List<Way<Point>>> pointToWays, ref Way<Point> startingWay, ref Way<Point> viewPort, Way<Point> origViewPort, ref int startingIdx, ref bool followViewPort, ref bool backtracked, List<Point> intersections)
+        private static Way<Point> GetNonViewPortWaySharingThisPoint(Way<Point> viewPort, List<Way<Point>> waysContainingPoint)
+        {
+            // choose the other way that is not the viewPort
+            foreach (Way<Point> w in waysContainingPoint)
+            {
+                if (!w.Equals(viewPort))
+                {
+                    return w;
+                }
+            }
+
+            return null;
+        }
+
+        // makes my eyes bleed, try to refactor
+        // the below was obtained by drawing out examples and edge cases and testing it against real data, obtaining new edge cases
+        // etc. it's hard to explain
+        private static bool ShouldFollowViewport(Way<Point> viewPort, Way<Point> origViewPort, Way<Point> curWay, Way<Point> otherWay, Way<Point> polygon, Point curPoint, bool justCameFromABacktrack, bool inLoopForceBacktrack, bool currentFollowViewport)
+        {
+            bool followViewPort = currentFollowViewport;
+            int i = otherWay.IndexOf(curPoint);
+            Point next = otherWay[(i + 1) % otherWay.Count];
+            Point previous = otherWay[i - 1 >= 0 ? i - 1 : otherWay.Count - 2];
+            bool firstOrLastPoint = next.Equals(curWay[0]) || next.Equals(curWay[curWay.Count - 1]);
+            if (!curWay.Equals(viewPort))
+            {
+                if (justCameFromABacktrack && !PointInViewport(next, origViewPort))
+                {
+                    followViewPort = true;
+                }
+                else if (PointOnViewPortEdge(viewPort, next))
+                {
+                    followViewPort = true;
+                }
+                else if (PointOnViewPortEdge(viewPort, previous))
+                {
+                    followViewPort = false;
+                }
+                else if (PointTouchesButDoesntIntersectViewPort(otherWay, curPoint, origViewPort))
+                {
+                    if (firstOrLastPoint)
+                    {
+                        followViewPort = true;
+                    }
+                    else if (PointOnViewPortEdge(viewPort, next))
+                    {
+                        followViewPort = true;
+                    }
+                    else if (PointInViewport(next, origViewPort))
+                    {
+                        followViewPort = false;
+                    }
+                }
+                else if (inLoopForceBacktrack)
+                {
+                    followViewPort = false;
+                }
+                else
+                {
+                    followViewPort = true;
+                }
+            }
+            else
+            {
+                // we're on viewPort and are told to follow it as we just formed a polygon
+                if (followViewPort && polygon.Count == 1)
+                {
+                    followViewPort = true;
+                }
+                else if (PointTouchesButDoesntIntersectViewPort(otherWay, curPoint, origViewPort))
+                {
+                    if (firstOrLastPoint)
+                    {
+                        followViewPort = true;
+                    }
+                    else if (PointOnViewPortEdge(viewPort, next))
+                    {
+                        followViewPort = true;
+                    }
+                    else if (PointInViewport(next, origViewPort))
+                    {
+                        followViewPort = false;
+                    }
+                }
+                else if (PointOnViewPortEdge(viewPort, next))
+                {
+                    followViewPort = false;
+                }
+                else if (PointOnViewPortEdge(viewPort, previous))
+                {
+                    followViewPort = true;
+                }
+                else
+                {
+                    followViewPort = false;
+                }
+            }
+
+            return followViewPort;
+        }
+
+        private static bool TryToBuildPolygons(List<Way<Point>> polygons, Dictionary<Point, List<Way<Point>>> pointToWays, ref Way<Point> startingWay, ref Way<Point> viewPort, Way<Point> origViewPort, ref int startingIdx, ref bool followViewPort, ref bool backtrackedOnLastIntersection, ref bool justCameFromABacktrack, List<Point> intersections)
         {
             Way<Point> polygon = null;
             int idx = startingIdx;
@@ -961,6 +1062,7 @@ namespace AutomaticWaterMasking
             {
                 List<Point> intersectionsRemoved = new List<Point>();
                 List<Point> intersectionsNotToRemove = new List<Point>();
+                Point otherInterSectionInLoop = null;
                 bool inLoopForceBacktrack = false;
                 while (!polygon.IsClosedWay())
                 {
@@ -983,13 +1085,14 @@ namespace AutomaticWaterMasking
                         intersections.Add(curWay[startingIdx]);
                         if (inLoopForceBacktrack)
                         {
+                            Point toRemove = curWay[startingIdx];
                             curWay.RemoveAt(startingIdx);
                             startingIdx--;
-                            Point p = curWay[startingIdx];
-                            if (!intersectionsNotToRemove.Contains(p))
+                            if (!intersectionsNotToRemove.Contains(toRemove))
                             {
-                                intersections.Remove(curWay[startingIdx]);
+                                intersections.Remove(toRemove);
                             }
+                            intersections.Add(otherInterSectionInLoop);
                         }
 
                         return false;
@@ -1016,9 +1119,6 @@ namespace AutomaticWaterMasking
                     {
                         intersections.Remove(curPoint);
                         intersectionsRemoved.Add(curPoint);
-
-                        int nextIdx = (idx + 1) % curWay.Count;
-                        Point nextPoint = curWay[nextIdx];
                     }
 
                     polygon.Add(curPoint);
@@ -1033,34 +1133,29 @@ namespace AutomaticWaterMasking
                     }
                     else if (waysContainingPoint.Contains(viewPort))
                     {
-                        Way<Point> otherWay = null;
-                        // choose the other way that is not the viewPort
-                        foreach (Way<Point> w in waysContainingPoint)
+                        Way<Point> otherWay = GetNonViewPortWaySharingThisPoint(viewPort, waysContainingPoint);
+
+                        int i = otherWay.IndexOf(curPoint);
+                        Point next = otherWay[(i + 1) % otherWay.Count];
+                        Point previous = otherWay[i - 1 >= 0 ? i - 1 : otherWay.Count - 2];
+                        bool firstOrLastPoint = next.Equals(curWay[0]) || next.Equals(curWay[curWay.Count - 1]);
+
+                        if (inLoopForceBacktrack)
                         {
-                            if (!w.Equals(viewPort))
-                            {
-                                otherWay = w;
-                                break;
-                            }
+                            followViewPort = false;
                         }
-                        bool firstOrLastPoint = curPoint.Equals(curWay[0]) || curPoint.Equals(curWay[curWay.Count - 1]);
-                        bool pointTouchesButDoesntIntersectViewPort = PointTouchesButDoesntIntersectViewPort(curWay, curPoint, origViewPort);
-                        bool shouldNotFollowViewPort = pointTouchesButDoesntIntersectViewPort;
-                        if (backtracked)
+                        else if (intersectionsRemoved.Contains(next))
                         {
-                            int i = otherWay.IndexOf(curPoint);
-                            Point next = otherWay[(i + 1) % otherWay.Count];
-                            if (PointInViewport(next, viewPort))
-                            {
-                                shouldNotFollowViewPort = true;
-                            }
-                            else
-                            {
-                                shouldNotFollowViewPort = false;
-                            }
+                            inLoopForceBacktrack = true;
+                            followViewPort = false;
+                            otherInterSectionInLoop = curPoint;
+                        }
+                        else
+                        {
+                            followViewPort = ShouldFollowViewport(viewPort, origViewPort, curWay, otherWay, polygon, curPoint, justCameFromABacktrack, inLoopForceBacktrack, followViewPort);
                         }
 
-                        if (followViewPort && !inLoopForceBacktrack && (!shouldNotFollowViewPort || firstOrLastPoint))
+                        if (followViewPort)
                         {
                             curWay = viewPort;
                         }
@@ -1068,13 +1163,6 @@ namespace AutomaticWaterMasking
                         {
                             curWay = otherWay;
                         }
-                        if (shouldNotFollowViewPort)
-                        {
-                            // will be reset to true right below :) so we can follow the viewport at the next intersection
-                            // if the next intersection isn't another point that just touches of course...
-                            followViewPort = false;
-                        }
-                        followViewPort = !followViewPort;
                     }
                     else
                     {
@@ -1084,18 +1172,20 @@ namespace AutomaticWaterMasking
                     idx = curWay.IndexOf(curPoint);
 
                     idx = (idx + 1) % curWay.Count;
-                    if (backtracked && PointTouchesButDoesntIntersectViewPort(curWay, curPoint, origViewPort))
+                    if (backtrackedOnLastIntersection && PointTouchesButDoesntIntersectViewPort(curWay, curPoint, origViewPort))
                     {
-                        backtracked = false;
+                        backtrackedOnLastIntersection = false;
                         int i = curWay.IndexOf(curPoint);
                         Point next = curWay[(i + 1) % curWay.Count];
-                        if (PointInViewport(next, viewPort) && !PointOnViewPortEdge(viewPort, next))
+                        Point previous = curWay[i - 1 >= 0 ? i - 1 : curWay.Count - 2];
+                        if (PointInViewport(next, viewPort) && !(PointOnViewPortEdge(viewPort, next) || PointOnViewPortEdge(viewPort, previous)))
                         {
                             intersections.Add(curPoint);
                             intersectionsRemoved.Remove(curPoint);
                             intersectionsNotToRemove.Add(curPoint);
                         }
                     }
+                    justCameFromABacktrack = false;
                 }
                 polygons.Add(polygon);
 
@@ -1123,7 +1213,8 @@ namespace AutomaticWaterMasking
                     }
                     polygon = new Way<Point>();
                     followViewPort = true;
-                    backtracked = false;
+                    backtrackedOnLastIntersection = false;
+                    justCameFromABacktrack = false;
                 }
             }
 
@@ -1222,6 +1313,7 @@ namespace AutomaticWaterMasking
             Way<Point> startingWay = viewPort;
             bool followViewPort = false;
             bool backtracked = false;
+            bool justBacktracked = false;
             Way<Point> origViewPort = new Way<Point>(viewPort);
 
             int numRetries = 0;
@@ -1231,7 +1323,7 @@ namespace AutomaticWaterMasking
                 bool newPolys = false;
                 try
                 {
-                    newPolys = TryToBuildPolygons(polygons, pointToWays, ref startingWay, ref viewPort, origViewPort, ref startingIdx, ref followViewPort, ref backtracked, allIntersections); // copy of intersections in case we need to start again
+                    newPolys = TryToBuildPolygons(polygons, pointToWays, ref startingWay, ref viewPort, origViewPort, ref startingIdx, ref followViewPort, ref backtracked, ref justBacktracked, allIntersections); // copy of intersections in case we need to start again
                 }
                 catch (Exception e)
                 {
@@ -1242,6 +1334,7 @@ namespace AutomaticWaterMasking
                     numRetries++;
                     keepTrying = true;
                     backtracked = true;
+                    justBacktracked = true;
                 }
 
                 if (numRetries > BACK_TRACK_RETRIES)
