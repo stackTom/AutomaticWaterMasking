@@ -980,11 +980,7 @@ namespace AutomaticWaterMasking
                         startingWay = curWay;
                         followViewPort = true;
 
-                        // reset, as we might need them since we didn't form a valid polygon
-                        foreach (Point p in intersectionsRemoved)
-                        {
-                            intersections.Add(p);
-                        }
+                        intersections.Add(curWay[startingIdx]);
                         if (inLoopForceBacktrack)
                         {
                             curWay.RemoveAt(startingIdx);
@@ -1091,9 +1087,14 @@ namespace AutomaticWaterMasking
                     if (backtracked && PointTouchesButDoesntIntersectViewPort(curWay, curPoint, origViewPort))
                     {
                         backtracked = false;
-                        intersections.Add(curPoint);
-                        intersectionsRemoved.Remove(curPoint);
-                        intersectionsNotToRemove.Add(curPoint);
+                        int i = curWay.IndexOf(curPoint);
+                        Point next = curWay[(i + 1) % curWay.Count];
+                        if (PointInViewport(next, viewPort) && !PointOnViewPortEdge(viewPort, next))
+                        {
+                            intersections.Add(curPoint);
+                            intersectionsRemoved.Remove(curPoint);
+                            intersectionsNotToRemove.Add(curPoint);
+                        }
                     }
                 }
                 polygons.Add(polygon);
