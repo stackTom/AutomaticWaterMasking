@@ -1030,7 +1030,7 @@ namespace AutomaticWaterMasking
                     throw new Exception("These vectors don't form valid polygons. Check the input data, and try again");
                 }
             }
-            else if (PointInViewport(next, origViewPort))
+            else if (PointInViewport(next, origViewPort) && !PointOnViewPortEdge(origViewPort, next))
             {
                 followViewPort = false;
             }
