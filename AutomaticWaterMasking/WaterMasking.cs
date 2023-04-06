@@ -1100,11 +1100,18 @@ namespace AutomaticWaterMasking
 
                         if (PointTouchesButDoesntIntersectViewPort(otherWay, curPoint, origViewPort))
                         {
+                            // basically, if point touches but doesn't intersect viewPort, might be able to form another polygon from it
+                            // but only if the next point is inside the viewPort, and if the next point on the viewPort leads to a
+                            // way that goes into the viewPort, not outside. Examples are Tiles (-14, 143) (54, -59) (55, -61)
                             Point next = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
                             Point previous = otherWay.GetPointAtOffsetFromPoint(curPoint, -1);
-                            if (PointInViewport(next, viewPort) && !(PointOnViewPortEdge(viewPort, next) || PointOnViewPortEdge(viewPort, previous)))
+                            if (PointInViewport(next, origViewPort) && !(PointOnViewPortEdge(origViewPort, next) || PointOnViewPortEdge(origViewPort, previous)))
                             {
-                                if (!pointsTouchingButNotTransectingFromInside.Contains(curPoint))
+                                Point nextPointInViewport = viewPort.GetPointAtOffsetFromPoint(curPoint, 1);
+                                List<Way<Point>> waysContainingNextPoint = pointToWays[nextPointInViewport];
+                                Way<Point> otherwayAtNextPoint = GetNonViewPortWaySharingThisPoint(viewPort, waysContainingPoint);
+                                Point otherWayNextPoint = otherwayAtNextPoint.GetPointAtOffsetFromPoint(nextPointInViewport, 1);
+                                if (PointInViewport(otherWayNextPoint, origViewPort) && !pointsTouchingButNotTransectingFromInside.Contains(curPoint))
                                 {
                                     intersections.Add(curPoint);
                                     pointsTouchingButNotTransectingFromInside.Add(curPoint);
