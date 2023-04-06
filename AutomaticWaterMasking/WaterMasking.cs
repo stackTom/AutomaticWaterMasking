@@ -1022,15 +1022,14 @@ namespace AutomaticWaterMasking
             {
                 followViewPort = true;
             }
-            // TODO: make below work in the case where have way intersescting viewport at one point
-            //else if (curWay.Equals(viewPort))
-            //{
-            //    // wrong orientation of vectors
-            //    if (!PointInViewport(next, origViewPort))
-            //    {
-            //        throw new Exception("These vectors don't form valid polygons. Check the input data, and try again");
-            //    }
-            //}
+            else if (curWay.Equals(viewPort))
+            {
+                // wrong orientation of vectors
+                if (!PointInViewport(next, origViewPort))
+                {
+                    throw new Exception("These vectors don't form valid polygons. Check the input data, and try again");
+                }
+            }
             else if (PointInViewport(next, origViewPort))
             {
                 followViewPort = false;
