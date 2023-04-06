@@ -1052,7 +1052,8 @@ namespace AutomaticWaterMasking
             Point curPoint = null;
             // if a polygon has more points comprising it than all the points available, we have a problem
             int CLOSE_WAY_RETRIES = pointToWays.Count;
-            while (intersections.Count > 1)
+            HashSet<Point> pointsTouchingButNotTransectingFromInside = new HashSet<Point>();
+            while (intersections.Count > 0)
             {
                 while (!polygon.IsClosedWay())
                 {
@@ -1079,18 +1080,15 @@ namespace AutomaticWaterMasking
                     else if (waysContainingPoint.Contains(viewPort))
                     {
                         Way<Point> otherWay = GetNonViewPortWaySharingThisPoint(viewPort, waysContainingPoint);
-                        // TODO: implement
-                        //if (PointTouchesButDoesntIntersectViewPort(otherWay, curPoint, origViewPort))
-                        //{
-                        //    Point next = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
-                        //    Point previous = otherWay.GetPointAtOffsetFromPoint(curPoint, -1);
-                        //    if (PointInViewport(next, viewPort) && !(PointOnViewPortEdge(viewPort, next) || PointOnViewPortEdge(viewPort, previous)))
-                        //    {
-                        //        intersections.Add(curPoint);
-                        //    }
-                        //}
 
-                        followViewPort = ShouldFollowViewport(viewPort, origViewPort, curWay, otherWay, polygon, intersections, curPoint);
+                        if (pointsTouchingButNotTransectingFromInside.Contains(curPoint))
+                        {
+                            followViewPort = true;
+                        }
+                        else
+                        {
+                            followViewPort = ShouldFollowViewport(viewPort, origViewPort, curWay, otherWay, polygon, intersections, curPoint);
+                        }
 
                         if (followViewPort)
                         {
@@ -1099,6 +1097,20 @@ namespace AutomaticWaterMasking
                         else
                         {
                             curWay = otherWay;
+                        }
+
+                        if (PointTouchesButDoesntIntersectViewPort(otherWay, curPoint, origViewPort))
+                        {
+                            Point next = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
+                            Point previous = otherWay.GetPointAtOffsetFromPoint(curPoint, -1);
+                            if (PointInViewport(next, viewPort) && !(PointOnViewPortEdge(viewPort, next) || PointOnViewPortEdge(viewPort, previous)))
+                            {
+                                if (!pointsTouchingButNotTransectingFromInside.Contains(curPoint))
+                                {
+                                    intersections.Add(curPoint);
+                                    pointsTouchingButNotTransectingFromInside.Add(curPoint);
+                                }
+                            }
                         }
                     }
                     else
@@ -1114,7 +1126,10 @@ namespace AutomaticWaterMasking
 
                 foreach (Point p in polygon)
                 {
-                    viewPort.Remove(p);
+                    if (!pointsTouchingButNotTransectingFromInside.Contains(p))
+                    {
+                        viewPort.Remove(p);
+                    }
                 }
 
                 if (intersections.Count > 0)
