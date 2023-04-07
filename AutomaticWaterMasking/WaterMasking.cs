@@ -998,11 +998,13 @@ namespace AutomaticWaterMasking
                     {
                         way.Remove(next);
                         intersectionsOfWay.Remove(next);
+                        viewPort.Remove(next);
                     }
                     if (!PointInViewport(prev, viewPort))
                     {
                         way.Remove(cur);
                         intersectionsOfWay.Remove(cur);
+                        viewPort.Remove(cur);
                     }
                 }
             }
