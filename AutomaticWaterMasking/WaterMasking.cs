@@ -944,7 +944,8 @@ namespace AutomaticWaterMasking
 
         private static bool PointOnViewPortEdge(Way<Point> viewPort, Way<Point> wayContainingPoint, Point p)
         {
-            Edge checkEdge = new Edge(p, wayContainingPoint.GetPointAtOffsetFromPoint(p, 1));
+            Edge checkEdgeForward = new Edge(p, wayContainingPoint.GetPointAtOffsetFromPoint(p, 1));
+            Edge checkEdgeBackward = new Edge(p, wayContainingPoint.GetPointAtOffsetFromPoint(p, -1));
 
             for (int i = 0; i < viewPort.Count; i++)
             {
@@ -957,7 +958,11 @@ namespace AutomaticWaterMasking
                 {
                     Edge viewPortEdge = new Edge(cur, next);
 
-                    if (checkEdge.ParallelTo(viewPortEdge))
+                    if (checkEdgeForward.ParallelTo(viewPortEdge))
+                    {
+                        return true;
+                    }
+                    if (checkEdgeBackward.ParallelTo(viewPortEdge))
                     {
                         return true;
                     }
