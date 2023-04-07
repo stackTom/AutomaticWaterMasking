@@ -76,6 +76,141 @@ namespace AutomaticWaterMasking
 
     }
 
+    public class Edge
+    {
+        public Point p1;
+        public Point p2;
+        public decimal A;
+        public decimal B;
+        public decimal C;
+
+        public Edge(Point p1, Point p2)
+        {
+            this.p1 = p1;
+            this.p2 = p2;
+
+            this.A = p2.Y - p1.Y;
+            this.B = p1.X - p2.X;
+            this.C = this.A * p1.X + this.B * p1.Y;
+        }
+
+
+        public bool PointInEdge(Point p)
+        {
+            decimal minX = Math.Min(this.p1.X, this.p2.X);
+            decimal maxX = Math.Max(this.p1.X, this.p2.X);
+            decimal minY = Math.Min(this.p1.Y, this.p2.Y);
+            decimal maxY = Math.Max(this.p1.Y, this.p2.Y);
+
+            if (SafeCompare.SafeLessThan(p.X, minX) || SafeCompare.SafeGreaterThan(p.X, maxX) || SafeCompare.SafeLessThan(p.Y, minY) || SafeCompare.SafeGreaterThan(p.Y, maxY))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private decimal GetDelta(Edge e)
+        {
+            return this.A * e.B - e.A * this.B;
+        }
+
+        public bool ParallelTo(Edge e)
+        {
+            return GetDelta(e) == 0;
+        }
+
+        // returns point of intersection, null if no intersection
+        // didn't want to do high school math, so thanks to
+        // https://stackoverflow.com/questions/4543506/algorithm-for-intersection-of-2-lines
+        public Point IntersectsWith(Edge e)
+        {
+            decimal delta = GetDelta(e);
+
+            if (delta == 0)
+            {
+                return null;
+            }
+
+            decimal x = (e.B * this.C - this.B * e.C) / delta;
+            decimal y = (this.A * e.C - e.A * this.C) / delta;
+            Point possibleIntersection = new Point(x, y);
+
+            if (this.PointInEdge(possibleIntersection) && e.PointInEdge(possibleIntersection))
+            {
+                return possibleIntersection;
+            }
+
+            return null;
+        }
+
+        public override string ToString()
+        {
+            return "(" + this.p1.ToString() + " " + this.p2.ToString() + ")";
+        }
+
+        public enum Direction
+        {
+            NorthToSouth,
+            SouthToNorth,
+            EastToWest,
+            WestToEast,
+            SWToNE,
+            NEToSW,
+            SEToNW,
+            NWToSE
+        }
+
+        public Direction GetDirection()
+        {
+            // equal lon (x)
+            if (SafeCompare.SafeEquals(this.p1.X, this.p2.X))
+            {
+                // going from north to south, water is on west
+                if (SafeCompare.SafeGreaterThan(this.p1.Y, this.p2.Y))
+                {
+                    return Direction.NorthToSouth;
+                }
+                // going from south to north, water is on east
+                return Direction.SouthToNorth;
+            }
+            // equal lat (y)
+            if (SafeCompare.SafeEquals(this.p1.Y, this.p2.Y))
+            {
+                // going from east to west, water is on north
+                if (SafeCompare.SafeGreaterThan(this.p1.X, this.p2.X))
+                {
+                    return Direction.EastToWest;
+                }
+                // going from west to east, water is on south
+                return Direction.WestToEast;
+            }
+            // neither lat nor lon are equal, look at the slope
+            decimal dx = this.p2.X - this.p1.X;
+            decimal dy = this.p2.Y - this.p1.Y;
+            if (SafeCompare.SafeGreaterThan((dy / dx), 0))
+            {
+                if (SafeCompare.SafeGreaterThan(dy, 0))
+                {
+                    // going from southwest to northeast, water is on southeast
+                    return Direction.SWToNE;
+                }
+                // going from northeast to southwest, water is on northwest
+                return Direction.NEToSW;
+            }
+            // at this point slope < 0. should never be 0 because lat's can't equal by this point
+            if (SafeCompare.SafeGreaterThan(dy, 0))
+            {
+                // going from southeast to northwest, water is on northeast
+                return Direction.SEToNW;
+            }
+
+            // going from northwest to southeast, water is on southwest
+            return Direction.NWToSE;
+        }
+    }
+
+
     public class Way<T> : System.Collections.Generic.List<T> where T : Point
     {
         public string relation;
@@ -242,130 +377,6 @@ namespace AutomaticWaterMasking
             }
 
             return prevPoint;
-        }
-
-        private class Edge
-        {
-            public Point p1;
-            public Point p2;
-            public decimal A;
-            public decimal B;
-            public decimal C;
-
-            public Edge(Point p1, Point p2)
-            {
-                this.p1 = p1;
-                this.p2 = p2;
-
-                this.A = p2.Y - p1.Y;
-                this.B = p1.X - p2.X;
-                this.C = this.A * p1.X + this.B * p1.Y;
-            }
-
-
-            public bool PointInEdge(Point p)
-            {
-                decimal minX = Math.Min(this.p1.X, this.p2.X);
-                decimal maxX = Math.Max(this.p1.X, this.p2.X);
-                decimal minY = Math.Min(this.p1.Y, this.p2.Y);
-                decimal maxY = Math.Max(this.p1.Y, this.p2.Y);
-
-                if (SafeCompare.SafeLessThan(p.X, minX) || SafeCompare.SafeGreaterThan(p.X, maxX) || SafeCompare.SafeLessThan(p.Y, minY) || SafeCompare.SafeGreaterThan(p.Y, maxY))
-                {
-                    return false;
-                }
-
-                return true;
-            }
-
-            // returns point of intersection, null if no intersection
-            // didn't want to do high school math, so thanks to
-            // https://stackoverflow.com/questions/4543506/algorithm-for-intersection-of-2-lines
-            public Point IntersectsWith(Edge e)
-            {
-                decimal delta = this.A * e.B - e.A * this.B;
-
-                if (delta == 0)
-                {
-                    return null;
-                }
-
-                decimal x = (e.B * this.C - this.B * e.C) / delta;
-                decimal y = (this.A * e.C - e.A * this.C) / delta;
-                Point possibleIntersection = new Point(x, y);
-
-                if (this.PointInEdge(possibleIntersection) && e.PointInEdge(possibleIntersection))
-                {
-                    return possibleIntersection;
-                }
-
-                return null;
-            }
-
-            public override string ToString()
-            {
-                return "(" + this.p1.ToString() + " " + this.p2.ToString() + ")";
-            }
-
-            public enum Direction
-            {
-                NorthToSouth,
-                SouthToNorth,
-                EastToWest,
-                WestToEast,
-                SWToNE,
-                NEToSW,
-                SEToNW,
-                NWToSE
-            }
-
-            public Direction GetDirection()
-            {
-                // equal lon (x)
-                if (SafeCompare.SafeEquals(this.p1.X, this.p2.X))
-                {
-                    // going from north to south, water is on west
-                    if (SafeCompare.SafeGreaterThan(this.p1.Y, this.p2.Y))
-                    {
-                        return Direction.NorthToSouth;
-                    }
-                    // going from south to north, water is on east
-                    return Direction.SouthToNorth;
-                }
-                // equal lat (y)
-                if (SafeCompare.SafeEquals(this.p1.Y, this.p2.Y))
-                {
-                    // going from east to west, water is on north
-                    if (SafeCompare.SafeGreaterThan(this.p1.X, this.p2.X))
-                    {
-                        return Direction.EastToWest;
-                    }
-                    // going from west to east, water is on south
-                    return Direction.WestToEast;
-                }
-                // neither lat nor lon are equal, look at the slope
-                decimal dx = this.p2.X - this.p1.X;
-                decimal dy = this.p2.Y - this.p1.Y;
-                if (SafeCompare.SafeGreaterThan((dy / dx), 0))
-                {
-                    if (SafeCompare.SafeGreaterThan(dy, 0))
-                    {
-                        // going from southwest to northeast, water is on southeast
-                        return Direction.SWToNE;
-                    }
-                    // going from northeast to southwest, water is on northwest
-                    return Direction.NEToSW;
-                }
-                // at this point slope < 0. should never be 0 because lat's can't equal by this point
-                if (SafeCompare.SafeGreaterThan(dy, 0))
-                {
-                    // going from southeast to northwest, water is on northeast
-                    return Direction.SEToNW;
-                }
-
-                // going from northwest to southeast, water is on southwest
-                return Direction.NWToSE;
-            }
         }
 
         // returns point of intersection, null if no intersection
@@ -931,17 +942,25 @@ namespace AutomaticWaterMasking
             return PointTouchesViewPortInside(way, point, viewPort) || PointTouchesViewPortOutside(way, point, viewPort);
         }
 
-        private static bool PointOnViewPortEdge(Way<Point> viewPort, Point p)
+        private static bool PointOnViewPortEdge(Way<Point> viewPort, Way<Point> wayContainingPoint, Point p)
         {
+            Edge checkEdge = new Edge(p, wayContainingPoint.GetPointAtOffsetFromPoint(p, 1));
+
             for (int i = 0; i < viewPort.Count; i++)
             {
-                Point v1 = viewPort[i];
-                Decimal dx = Math.Abs(v1.X - p.X);
-                Decimal dy = Math.Abs(v1.Y - p.Y);
+                Point cur = viewPort[i];
+                Point next = viewPort.GetPointAtOffsetFromPoint(cur, 1);
+                Decimal dx = Math.Abs(cur.X - p.X);
+                Decimal dy = Math.Abs(cur.Y - p.Y);
 
                 if (dx == 0 || dy == 0)
                 {
-                    return true;
+                    Edge viewPortEdge = new Edge(cur, next);
+
+                    if (checkEdge.ParallelTo(viewPortEdge))
+                    {
+                        return true;
+                    }
                 }
             }
 
@@ -953,7 +972,7 @@ namespace AutomaticWaterMasking
             for (int i = 0; i < way.Count; i++)
             {
                 Point p = way[i];
-                if (PointOnViewPortEdge(viewPort, p) && !intersectionsOfWay.Contains(p))
+                if (PointOnViewPortEdge(viewPort, way, p) && !intersectionsOfWay.Contains(p))
                 {
                     way.RemoveAt(i);
                 }
@@ -988,7 +1007,7 @@ namespace AutomaticWaterMasking
         {
             foreach (Point p in way)
             {
-                if (PointInViewport(p, viewPort) && !intersections.Contains(p) && !PointOnViewPortEdge(viewPort, p))
+                if (PointInViewport(p, viewPort) && !intersections.Contains(p) && !PointOnViewPortEdge(viewPort, way, p))
                 {
                     return false;
                 }
@@ -1018,7 +1037,7 @@ namespace AutomaticWaterMasking
             Point prev = otherWay.GetPointAtOffsetFromPoint(curPoint, -1);
             Point last = otherWay[otherWay.Count - 1];
             // happens near -90/90 and -180/180 of lat and long
-            if (PointOnViewPortEdge(origViewPort, last) && curPoint.Equals(last) && PointInViewport(prev, origViewPort) && PointInViewport(next, origViewPort))
+            if (PointOnViewPortEdge(origViewPort, otherWay, last) && curPoint.Equals(last) && PointInViewport(prev, origViewPort) && PointInViewport(next, origViewPort))
             {
                 followViewPort = true;
             }
@@ -1030,7 +1049,7 @@ namespace AutomaticWaterMasking
                     throw new Exception("These vectors don't form valid polygons. Check the input data, and try again");
                 }
             }
-            else if (PointInViewport(next, origViewPort) && !PointOnViewPortEdge(origViewPort, next))
+            else if (PointInViewport(next, origViewPort) && !PointOnViewPortEdge(origViewPort, otherWay, next))
             {
                 followViewPort = false;
             }
@@ -1105,7 +1124,7 @@ namespace AutomaticWaterMasking
                             // way that goes into the viewPort, not outside. Examples are Tiles (-14, 143) (54, -59) (55, -61)
                             Point next = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
                             Point previous = otherWay.GetPointAtOffsetFromPoint(curPoint, -1);
-                            if (PointInViewport(next, origViewPort) && !(PointOnViewPortEdge(origViewPort, next) || PointOnViewPortEdge(origViewPort, previous)))
+                            if (PointInViewport(next, origViewPort) && !(PointOnViewPortEdge(origViewPort, otherWay, next) || PointOnViewPortEdge(origViewPort, otherWay, previous)))
                             {
                                 Point nextPointInViewport = viewPort.GetPointAtOffsetFromPoint(curPoint, 1);
                                 List<Way<Point>> waysContainingNextPoint = pointToWays[nextPointInViewport];
