@@ -1295,6 +1295,7 @@ namespace AutomaticWaterMasking
                 }
             }
 
+            CleanOutsideSinglePointIntersections(pointToWays, viewPort, allIntersections);
             Way<Point> viewPortWithoutLastPoint = new Way<Point>(viewPort);
             viewPortWithoutLastPoint.RemoveAt(viewPort.Count - 1);
             PopulatePointToWaysDict(pointToWays, viewPortWithoutLastPoint);
@@ -1302,7 +1303,6 @@ namespace AutomaticWaterMasking
             int startingIdx = 0;
             Way<Point> startingWay = null;
             bool followViewPort = false;
-            CleanOutsideSinglePointIntersections(pointToWays, viewPort, allIntersections);
             Way<Point> origViewPort = new Way<Point>(viewPort);
             // start at 0, or the first intersection, if there is one. Always starting at 0 means we need to backtrack, which
             // leads to unnecessarily complicated code
