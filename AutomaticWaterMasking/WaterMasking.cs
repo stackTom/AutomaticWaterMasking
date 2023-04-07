@@ -1137,7 +1137,8 @@ namespace AutomaticWaterMasking
                                 List<Way<Point>> waysContainingNextPoint = pointToWays[nextPointInViewport];
                                 Way<Point> otherwayAtNextPoint = GetNonViewPortWaySharingThisPoint(viewPort, waysContainingPoint);
                                 Point otherWayNextPoint = otherwayAtNextPoint.GetPointAtOffsetFromPoint(nextPointInViewport, 1);
-                                if (PointInViewport(otherWayNextPoint, origViewPort) && !pointsTouchingButNotTransectingFromInside.Contains(curPoint))
+                                if (PointInViewport(otherWayNextPoint, origViewPort) && !PointTouchesButDoesntIntersectViewPort(otherWay, otherWayNextPoint, origViewPort)
+                                    && !PointOnViewPortEdge(origViewPort, otherWay, otherWayNextPoint) && !pointsTouchingButNotTransectingFromInside.Contains(curPoint))
                                 {
                                     intersections.Add(curPoint);
                                     pointsTouchingButNotTransectingFromInside.Add(curPoint);
