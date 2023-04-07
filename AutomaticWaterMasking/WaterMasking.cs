@@ -1217,17 +1217,7 @@ namespace AutomaticWaterMasking
                 if (intersections.Contains(curPoint))
                 {
                     List<Way<Point>> waysContainingPoint = pointToWays[curPoint];
-                    Way<Point> otherWay = null;
-
-                    // choose the other way that is not the viewPort
-                    foreach (Way<Point> w in waysContainingPoint)
-                    {
-                        if (!w.Equals(viewPort))
-                        {
-                            otherWay = w;
-                            break;
-                        }
-                    }
+                    Way<Point> otherWay = GetNonViewPortWaySharingThisPoint(viewPort, waysContainingPoint);
 
                     if (PointTouchesViewPortOutside(otherWay, curPoint, viewPort))
                     {
