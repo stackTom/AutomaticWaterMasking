@@ -1056,6 +1056,29 @@ namespace AutomaticWaterMasking
                     throw new Exception("These vectors don't form valid polygons. Check the input data, and try again");
                 }
             }
+            else if (PointTouchesViewPortInside(otherWay, curPoint, origViewPort))
+            {
+                // basically, if the point touches but doesn't transect the viewport, but the way goes backwards on the viewport...
+                // then follow the viewport, as it can't possibly form this current polygon if it's going backwards
+                // on the viewport. unless the point in question is the first point of the polygon, in which case
+                // a successful polygon can be formed
+                int viewPortIdx = origViewPort.IndexOf(curPoint);
+                // get next intersection of the other way and the viewport
+                Point otherWayPoint = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
+                while (!intersections.Contains(otherWayPoint))
+                {
+                    otherWayPoint = otherWay.GetPointAtOffsetFromPoint(otherWayPoint, 1);
+                }
+                int otherWayIdx = origViewPort.IndexOf(otherWayPoint);
+                if (otherWayIdx < viewPortIdx && !curPoint.Equals(polygon[0]))
+                {
+                    followViewPort = true;
+                }
+                else
+                {
+                    followViewPort = false;
+                }
+            }
             else if (PointInViewport(next, origViewPort) && !PointOnViewPortEdge(origViewPort, otherWay, next))
             {
                 followViewPort = false;
@@ -1077,7 +1100,10 @@ namespace AutomaticWaterMasking
             Point curPoint = null;
             // if a polygon has more points comprising it than all the points available, we have a problem
             int CLOSE_WAY_RETRIES = pointToWays.Count;
-            HashSet<Point> pointsTouchingButNotTransectingFromInside = new HashSet<Point>();
+            // contains points that touch but not transect viewport and we should follow the viewport after
+            HashSet<Point> touchingButNotTransectingFollowViewPort = new HashSet<Point>();
+            // contains points that touch but not transect viewport and we should not follow the viewport after
+            HashSet<Point> touchingButNotTransectingDontFollowViewPort = new HashSet<Point>();
             while (intersections.Count > 0)
             {
                 while (!polygon.IsClosedWay())
@@ -1106,7 +1132,7 @@ namespace AutomaticWaterMasking
                     {
                         Way<Point> otherWay = GetNonViewPortWaySharingThisPoint(viewPort, waysContainingPoint);
 
-                        if (pointsTouchingButNotTransectingFromInside.Contains(curPoint))
+                        if (touchingButNotTransectingFollowViewPort.Contains(curPoint))
                         {
                             followViewPort = true;
                         }
@@ -1129,6 +1155,8 @@ namespace AutomaticWaterMasking
                             // basically, if point touches but doesn't intersect viewPort, might be able to form another polygon from it
                             // but only if the next point is inside the viewPort, and if the next point on the viewPort leads to a
                             // way that goes into the viewPort, not outside. Examples are Tiles (-14, 143) (54, -59) (55, -61)
+                            // another case where we can form polygons is if point touches but doesn't intersect, but we are following the viewport
+                            // example in tile (66, -62)
                             Point next = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
                             Point previous = otherWay.GetPointAtOffsetFromPoint(curPoint, -1);
                             if (PointInViewport(next, origViewPort) && !(PointOnViewPortEdge(origViewPort, otherWay, next) || PointOnViewPortEdge(origViewPort, otherWay, previous)))
@@ -1137,11 +1165,18 @@ namespace AutomaticWaterMasking
                                 List<Way<Point>> waysContainingNextPoint = pointToWays[nextPointInViewport];
                                 Way<Point> otherwayAtNextPoint = GetNonViewPortWaySharingThisPoint(viewPort, waysContainingPoint);
                                 Point otherWayNextPoint = otherwayAtNextPoint.GetPointAtOffsetFromPoint(nextPointInViewport, 1);
-                                if (PointInViewport(otherWayNextPoint, origViewPort) && !PointTouchesButDoesntIntersectViewPort(otherWay, otherWayNextPoint, origViewPort)
-                                    && !PointOnViewPortEdge(origViewPort, otherWay, otherWayNextPoint) && !pointsTouchingButNotTransectingFromInside.Contains(curPoint))
+                                if ((followViewPort || (PointInViewport(otherWayNextPoint, origViewPort) && !PointTouchesButDoesntIntersectViewPort(otherWay, otherWayNextPoint, origViewPort)
+                                    && !PointOnViewPortEdge(origViewPort, otherWay, otherWayNextPoint))) && !touchingButNotTransectingFollowViewPort.Contains(curPoint))
                                 {
                                     intersections.Add(curPoint);
-                                    pointsTouchingButNotTransectingFromInside.Add(curPoint);
+                                    if (followViewPort)
+                                    {
+                                        touchingButNotTransectingDontFollowViewPort.Add(curPoint);
+                                    }
+                                    else
+                                    {
+                                        touchingButNotTransectingFollowViewPort.Add(curPoint);
+                                    }
                                 }
                             }
                         }
@@ -1159,7 +1194,7 @@ namespace AutomaticWaterMasking
 
                 foreach (Point p in polygon)
                 {
-                    if (!pointsTouchingButNotTransectingFromInside.Contains(p))
+                    if (!(touchingButNotTransectingFollowViewPort.Contains(p) || touchingButNotTransectingDontFollowViewPort.Contains(p)))
                     {
                         viewPort.Remove(p);
                     }
