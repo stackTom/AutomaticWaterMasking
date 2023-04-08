@@ -1043,12 +1043,7 @@ namespace AutomaticWaterMasking
             Point next = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
             Point prev = otherWay.GetPointAtOffsetFromPoint(curPoint, -1);
             Point last = otherWay[otherWay.Count - 1];
-            // happens near -90/90 and -180/180 of lat and long
-            if (PointOnViewPortEdge(origViewPort, otherWay, last) && curPoint.Equals(last) && PointInViewport(prev, origViewPort) && PointInViewport(next, origViewPort))
-            {
-                followViewPort = true;
-            }
-            else if (curWay.Equals(viewPort))
+            if (curWay.Equals(viewPort))
             {
                 // wrong orientation of vectors
                 if (!PointInViewport(next, origViewPort))
@@ -1056,7 +1051,13 @@ namespace AutomaticWaterMasking
                     throw new Exception("These vectors don't form valid polygons. Check the input data, and try again");
                 }
             }
-            else if (PointTouchesViewPortInside(otherWay, curPoint, origViewPort))
+
+            // happens near -90/90 and -180/180 of lat and long
+            if (PointOnViewPortEdge(origViewPort, otherWay, last) && curPoint.Equals(last) && PointInViewport(prev, origViewPort) && PointInViewport(next, origViewPort))
+            {
+                followViewPort = true;
+            }
+            else if (PointTouchesViewPortInside(otherWay, curPoint, origViewPort) && !PointOnViewPortEdge(origViewPort, otherWay, next))
             {
                 // basically, if the point touches but doesn't transect the viewport, but the way goes backwards on the viewport...
                 // then follow the viewport, as it can't possibly form this current polygon if it's going backwards
