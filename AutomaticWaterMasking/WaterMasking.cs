@@ -905,6 +905,11 @@ namespace AutomaticWaterMasking
             return true;
         }
 
+        private static bool PointOutsideViewPort(Point p, Way<Point> wayContainingPoint, Way<Point> viewPort)
+        {
+            return !PointInViewport(p, viewPort) && !PointOnViewPortEdge(viewPort, wayContainingPoint, p);
+        }
+
         private static bool PointTouchesViewPortOutside(Way<Point> way, Point point, Way<Point> viewPort)
         {
             Point nextPoint = way.GetPointAtOffsetFromPoint(point, 1);
@@ -1000,13 +1005,13 @@ namespace AutomaticWaterMasking
                 Point nextNext = way.GetPointAtOffsetFromPoint(cur, 2);
                 if (intersectionsOfWay.Contains(cur) && intersectionsOfWay.Contains(next))
                 {
-                    if (!PointInViewport(nextNext, viewPort))
+                    if (PointOutsideViewPort(nextNext, way, viewPort))
                     {
                         way.Remove(next);
                         intersectionsOfWay.Remove(next);
                         viewPort.Remove(next);
                     }
-                    if (!PointInViewport(prev, viewPort))
+                    if (PointOutsideViewPort(prev, way, viewPort))
                     {
                         way.Remove(cur);
                         intersectionsOfWay.Remove(cur);
