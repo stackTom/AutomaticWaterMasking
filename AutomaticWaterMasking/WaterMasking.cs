@@ -1025,7 +1025,7 @@ namespace AutomaticWaterMasking
         {
             foreach (Point p in way)
             {
-                if (PointInViewport(p, viewPort) && !intersections.Contains(p) && !PointOnViewPortEdge(viewPort, way, p))
+                if (PointInViewport(p, viewPort) && !intersections.Contains(p))
                 {
                     return false;
                 }
@@ -1068,7 +1068,7 @@ namespace AutomaticWaterMasking
             {
                 followViewPort = true;
             }
-            else if (PointTouchesViewPortInside(otherWay, curPoint, origViewPort) && !PointOnViewPortEdge(origViewPort, otherWay, next) && intersections.Count > 0)
+            else if (PointTouchesViewPortInside(otherWay, curPoint, origViewPort) && intersections.Count > 0)
             {
                 // basically, if the point touches but doesn't transect the viewport, but the way goes backwards on the viewport...
                 // then follow the viewport, as it can't possibly form this current polygon if it's going backwards
@@ -1091,7 +1091,7 @@ namespace AutomaticWaterMasking
                     followViewPort = false;
                 }
             }
-            else if (PointInViewport(next, origViewPort) && !PointOnViewPortEdge(origViewPort, otherWay, next))
+            else if (PointInViewport(next, origViewPort))
             {
                 followViewPort = false;
             }
@@ -1171,14 +1171,13 @@ namespace AutomaticWaterMasking
                             // example in tile (66, -62)
                             Point next = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
                             Point previous = otherWay.GetPointAtOffsetFromPoint(curPoint, -1);
-                            if (PointInViewport(next, origViewPort) && !(PointOnViewPortEdge(origViewPort, otherWay, next) || PointOnViewPortEdge(origViewPort, otherWay, previous)))
+                            if (PointInViewport(next, origViewPort) && PointInViewport(previous, origViewPort))
                             {
                                 Point nextPointInViewport = viewPort.GetPointAtOffsetFromPoint(curPoint, 1);
                                 List<Way<Point>> waysContainingNextPoint = pointToWays[nextPointInViewport];
                                 Way<Point> otherwayAtNextPoint = GetNonViewPortWaySharingThisPoint(viewPort, waysContainingPoint);
                                 Point otherWayNextPoint = otherwayAtNextPoint.GetPointAtOffsetFromPoint(nextPointInViewport, 1);
-                                if ((followViewPort || (PointInViewport(otherWayNextPoint, origViewPort) && !PointTouchesButDoesntIntersectViewPort(otherWay, otherWayNextPoint, origViewPort)
-                                    && !PointOnViewPortEdge(origViewPort, otherWay, otherWayNextPoint))) && !touchingButNotTransectingFollowViewPort.Contains(curPoint))
+                                if ((followViewPort || (PointInViewport(otherWayNextPoint, origViewPort) && !PointTouchesButDoesntIntersectViewPort(otherWay, otherWayNextPoint, origViewPort))) && !touchingButNotTransectingFollowViewPort.Contains(curPoint))
                                 {
                                     intersections.Add(curPoint);
                                     if (followViewPort)
