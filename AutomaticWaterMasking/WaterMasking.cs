@@ -891,7 +891,13 @@ namespace AutomaticWaterMasking
             decimal minY = temp[0].Y;
             decimal maxY = temp[temp.Count - 2].Y;
 
+            // outside viewport
             if (SafeCompare.SafeLessThan(p.X, minX) || SafeCompare.SafeGreaterThan(p.X, maxX) || SafeCompare.SafeLessThan(p.Y, minY) || SafeCompare.SafeGreaterThan(p.Y, maxY))
+            {
+                return false;
+            }
+            // not outside, but exactly on the viewport
+            if (SafeCompare.SafeEquals(p.X, minX) || SafeCompare.SafeEquals(p.X, maxX) || SafeCompare.SafeEquals(p.Y, minY) || SafeCompare.SafeEquals(p.Y, maxY))
             {
                 return false;
             }
@@ -954,7 +960,7 @@ namespace AutomaticWaterMasking
                 Decimal dx = Math.Abs(cur.X - p.X);
                 Decimal dy = Math.Abs(cur.Y - p.Y);
 
-                if (dx == 0 || dy == 0)
+                if (!PointInViewport(p, viewPort) &&  (dx == 0 || dy == 0))
                 {
                     Edge viewPortEdge = new Edge(cur, next);
 
