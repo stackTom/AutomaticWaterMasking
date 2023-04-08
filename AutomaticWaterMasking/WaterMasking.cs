@@ -995,7 +995,7 @@ namespace AutomaticWaterMasking
             }
         }
 
-        public static void CleanWaysWithTwoConsecutivePointsOnViewPort(Way<Point> way, Way<Point> viewPort, List<Point> intersectionsOfWay)
+        public static void CleanWaysTransectingWithTwoConsecutivePointsOnViewPort(Way<Point> way, Way<Point> viewPort, List<Point> intersectionsOfWay)
         {
             List<Point> intersectionsCopy = new List<Point>(intersectionsOfWay);
             foreach (Point cur in intersectionsCopy)
@@ -1292,7 +1292,7 @@ namespace AutomaticWaterMasking
                     continue;
                 }
                 CleanExtraNonIntersectionPointsOnViewPort(way, viewPort, intersections);
-                CleanWaysWithTwoConsecutivePointsOnViewPort(way, viewPort, intersections);
+                CleanWaysTransectingWithTwoConsecutivePointsOnViewPort(way, viewPort, intersections);
                 if (WayOutsideViewPort(way, viewPort, intersections))
                 {
                     foreach (Point p in intersections)
