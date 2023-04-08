@@ -1068,7 +1068,7 @@ namespace AutomaticWaterMasking
             {
                 followViewPort = true;
             }
-            else if (PointTouchesViewPortInside(otherWay, curPoint, origViewPort) && !PointOnViewPortEdge(origViewPort, otherWay, next))
+            else if (PointTouchesViewPortInside(otherWay, curPoint, origViewPort) && !PointOnViewPortEdge(origViewPort, otherWay, next) && intersections.Count > 0)
             {
                 // basically, if the point touches but doesn't transect the viewport, but the way goes backwards on the viewport...
                 // then follow the viewport, as it can't possibly form this current polygon if it's going backwards
