@@ -1051,9 +1051,15 @@ namespace AutomaticWaterMasking
                 int viewPortIdx = origViewPort.IndexOf(curPoint);
                 // get next intersection of the other way and the viewport
                 Point otherWayPoint = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
+                int timesAroundLoop = 0;
                 while (!intersections.Contains(otherWayPoint))
                 {
+                    if (timesAroundLoop > otherWay.Count)
+                    {
+                        throw new Exception("Something went wrong with a point touching, but not transecting the viewport. There is probably something wrong with the data.");
+                    }
                     otherWayPoint = otherWay.GetPointAtOffsetFromPoint(otherWayPoint, 1);
+                    timesAroundLoop++;
                 }
                 int otherWayIdx = origViewPort.IndexOf(otherWayPoint);
                 if (otherWayIdx < viewPortIdx && !curPoint.Equals(polygon[0]))
