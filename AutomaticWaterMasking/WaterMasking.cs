@@ -352,6 +352,11 @@ namespace AutomaticWaterMasking
                 while (i < offset)
                 {
                     idx = (idx + 1) % this.Count;
+                    if (this.IsClosedWay() && idx == 0)
+                    {
+                        // first and last points are equal
+                        idx = 1;
+                    }
                     nextPoint = this[idx];
                     i++;
                 }
@@ -369,8 +374,15 @@ namespace AutomaticWaterMasking
                 }
                 else
                 {
-                    // way.Count - 2 because first and last points are equal...
-                    idx = this.Count - 2;
+                    if (this.IsClosedWay())
+                    {
+                        // way.Count - 2 because first and last points are equal...
+                        idx = this.Count - 2;
+                    }
+                    else
+                    {
+                        idx = this.Count - 1;
+                    }
                 }
                 prevPoint = this[idx];
                 j--;
