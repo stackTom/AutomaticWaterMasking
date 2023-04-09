@@ -688,7 +688,10 @@ namespace AutomaticWaterMasking
                     MergeMultipolygonWays(waysInThisMultipolygon);
                     foreach (Way<Point> way in waysInThisMultipolygon)
                     {
-                        wayIDsToWays.Add(way.wayID, way);
+                        if (!wayIDsToWays.ContainsKey(way.wayID))
+                        {
+                            wayIDsToWays.Add(way.wayID, way);
+                        }
                     }
                 }
             }
