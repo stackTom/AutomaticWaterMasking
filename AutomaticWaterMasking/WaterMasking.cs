@@ -1245,6 +1245,7 @@ namespace AutomaticWaterMasking
                         intersections.Remove(curPoint);
                         viewPort.Remove(curPoint);
                         otherWay.Remove(curPoint);
+                        i--;
                     }
                 }
             }
