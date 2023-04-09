@@ -995,44 +995,6 @@ namespace AutomaticWaterMasking
             return false;
         }
 
-        private static void CleanExtraNonIntersectionPointsOnViewPort(Way<Point> way, Way<Point> viewPort, List<Point> intersectionsOfWay)
-        {
-            for (int i = 0; i < way.Count; i++)
-            {
-                Point p = way[i];
-                if (PointOnViewPortEdge(viewPort, way, p) && !intersectionsOfWay.Contains(p))
-                {
-                    way.RemoveAt(i);
-                }
-            }
-        }
-
-        public static void CleanWaysTransectingWithTwoConsecutivePointsOnViewPort(Way<Point> way, Way<Point> viewPort, List<Point> intersectionsOfWay)
-        {
-            List<Point> intersectionsCopy = new List<Point>(intersectionsOfWay);
-            foreach (Point cur in intersectionsCopy)
-            {
-                Point prev = way.GetPointAtOffsetFromPoint(cur, -1);
-                Point next = way.GetPointAtOffsetFromPoint(cur, 1);
-                Point nextNext = way.GetPointAtOffsetFromPoint(cur, 2);
-                if (intersectionsOfWay.Contains(cur) && intersectionsOfWay.Contains(next))
-                {
-                    if (PointOutsideViewPort(nextNext, way, viewPort))
-                    {
-                        way.Remove(next);
-                        intersectionsOfWay.Remove(next);
-                        viewPort.Remove(next);
-                    }
-                    if (PointOutsideViewPort(prev, way, viewPort))
-                    {
-                        way.Remove(cur);
-                        intersectionsOfWay.Remove(cur);
-                        viewPort.Remove(cur);
-                    }
-                }
-            }
-        }
-
         private static bool WayOutsideViewPort(Way<Point> way, Way<Point> viewPort, List<Point> intersections)
         {
             foreach (Point p in way)
@@ -1302,8 +1264,6 @@ namespace AutomaticWaterMasking
                 {
                     continue;
                 }
-                CleanExtraNonIntersectionPointsOnViewPort(way, viewPort, intersections);
-                CleanWaysTransectingWithTwoConsecutivePointsOnViewPort(way, viewPort, intersections);
                 if (WayOutsideViewPort(way, viewPort, intersections))
                 {
                     foreach (Point p in intersections)
