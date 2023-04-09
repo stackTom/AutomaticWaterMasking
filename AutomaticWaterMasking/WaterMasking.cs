@@ -1099,10 +1099,6 @@ namespace AutomaticWaterMasking
                         throw new Exception("Endless loop trying to close polygon; there is probably something wrong with the data");
                     }
                     curPoint = curWay[idx];
-                    if (intersections.Contains(curPoint))
-                    {
-                        intersections.Remove(curPoint);
-                    }
 
                     polygon.Add(curPoint);
                     List<Way<Point>> waysContainingPoint = pointToWays[curPoint];
@@ -1174,6 +1170,10 @@ namespace AutomaticWaterMasking
                     idx = curWay.IndexOf(curPoint);
 
                     idx = (idx + 1) % curWay.Count;
+                    if (intersections.Contains(curPoint))
+                    {
+                        intersections.Remove(curPoint);
+                    }
                 }
                 polygons.Add(polygon);
 
