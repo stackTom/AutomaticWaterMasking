@@ -1261,7 +1261,7 @@ namespace AutomaticWaterMasking
             }
         }
 
-        private static List<Way<Point>> CoastWaysToPolygon(List<Way<Point>> coastWays, Way<Point> viewPort, List<Way<Point>>[] inlandPolygons)
+        private static List<Way<Point>> CoastWaysToPolygon(List<Way<Point>> coastWays, Way<Point> viewPort, List<Way<Point>> islands, List<Way<Point>>[] inlandPolygons)
         {
             List<Way<Point>> polygons = new List<Way<Point>>();
             List<Point> allIntersections = new List<Point>();
@@ -1320,7 +1320,7 @@ namespace AutomaticWaterMasking
                 coastWays.Remove(way);
                 if (way.IsClosedWay())
                 {
-                    inlandPolygons[1].Add(way);
+                    islands.Add(way);
                 }
             }
 
@@ -1375,7 +1375,7 @@ namespace AutomaticWaterMasking
         }
 
         // TODO: the array of List<Way<Point>> is ugly. Find another way to represent the different layers representing alternating land and water.
-        public static void CreatePolygons(List<Way<Point>> coastWaterPolygons, List<Way<Point>>[] inlandPolygons, string coastXML, string waterXML, Way<Point> viewPort)
+        public static void CreatePolygons(List<Way<Point>> coastWaterPolygons, List<Way<Point>> islands, List<Way<Point>>[] inlandPolygons, string coastXML, string waterXML, Way<Point> viewPort)
         {
             Dictionary<string, Way<Point>> coastWays = OSMXMLParser.GetWays(coastXML, true);
             Dictionary<string, Way<Point>> waterWays = OSMXMLParser.GetWays(waterXML, true);
@@ -1429,7 +1429,7 @@ namespace AutomaticWaterMasking
 
             List<Way<Point>> mergedCoasts = MergeCoastLines(coastWays);
 
-            List<Way<Point>> mergedWaterPolys = CoastWaysToPolygon(mergedCoasts, viewPort, inlandPolygons);
+            List<Way<Point>> mergedWaterPolys = CoastWaysToPolygon(mergedCoasts, viewPort, islands, inlandPolygons);
             // add the water polygons of coast ways which intersect with the view port
             foreach (Way<Point> way in mergedWaterPolys)
             {
@@ -1440,7 +1440,7 @@ namespace AutomaticWaterMasking
             {
                 if (way.IsClosedWay())
                 {
-                    inlandPolygons[1].Add(way);
+                    islands.Add(way);
                 }
             }
         }
@@ -1453,12 +1453,12 @@ namespace AutomaticWaterMasking
             return toMerge;
         }
 
-        public static void GetPolygons(List<Way<Point>> coastWaterPolygons, List<Way<Point>>[] inlandPolygons, DownloadArea d, Way<Point> viewPort, string saveLoc)
+        public static void GetPolygons(List<Way<Point>> coastWaterPolygons, List<Way<Point>> islands, List<Way<Point>>[] inlandPolygons, DownloadArea d, Way<Point> viewPort, string saveLoc)
         {
             string coastXML = DownloadOsmCoastData(d, saveLoc + Path.DirectorySeparatorChar + "coast.osm");
             string waterXML = DownloadOsmWaterData(d, saveLoc + Path.DirectorySeparatorChar + "water.osm");
 
-            CreatePolygons(coastWaterPolygons, inlandPolygons, coastXML, waterXML, viewPort);
+            CreatePolygons(coastWaterPolygons, islands, inlandPolygons, coastXML, waterXML, viewPort);
         }
 
         // these lat long to pixel, and vice versa, formulas, are from FSEarthtiles

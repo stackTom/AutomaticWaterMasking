@@ -10,7 +10,7 @@ public class AutomaticWaterMaskingTest
         string[] cmdArgs = Environment.GetCommandLineArgs();
         string outPath = cmdArgs[3];
         int startAt = Int32.Parse(cmdArgs[1]);
-        for (int startLat = Int32.Parse(cmdArgs[2]); startLat < 70; startLat++)
+        for (int startLat = Int32.Parse(cmdArgs[2]); startLat < 90; startLat++)
         {
             for (int startLon = startAt; startLon < 180; startLon++)
             {
@@ -18,6 +18,7 @@ public class AutomaticWaterMaskingTest
                 List<Way<AutomaticWaterMasking.Point>>[] inlandPolygons = new[] {
                     new List<Way<AutomaticWaterMasking.Point>>(), new List<Way<AutomaticWaterMasking.Point>>(), new List<Way<AutomaticWaterMasking.Point>>()
                 };
+                List<Way<Point>> islands = new List<Way<Point>>();
 
                 Console.WriteLine("Creating " + startLat.ToString() + ", " + startLon.ToString());
                 DownloadArea d = new DownloadArea(startLon, startLon + 1, startLat + 1, startLat);
@@ -31,7 +32,7 @@ public class AutomaticWaterMaskingTest
                 string coastXML = WaterMasking.DownloadOsmCoastData(d, outPath + Path.DirectorySeparatorChar + "coast.osm");
                 try
                 {
-                    WaterMasking.CreatePolygons(coastWaterPolygons, inlandPolygons, coastXML, null, viewPort);
+                    WaterMasking.CreatePolygons(coastWaterPolygons, islands, inlandPolygons, coastXML, null, viewPort);
                     string coastWater = OSMXMLParser.WaysToOSMXML(coastWaterPolygons);
                     File.WriteAllText(outPath + Path.DirectorySeparatorChar + "coastWaterPolys.osm", coastWater);
                 }
