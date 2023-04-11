@@ -1127,6 +1127,10 @@ namespace AutomaticWaterMasking
                         {
                             followViewPort = true;
                         }
+                        else if (touchingButNotTransectingDontFollowViewPort.Contains(curPoint))
+                        {
+                            followViewPort = false;
+                        }
                         else
                         {
                             followViewPort = ShouldFollowViewport(viewPort, origViewPort, curWay, otherWay, polygon, intersections, curPoint);
@@ -1156,7 +1160,8 @@ namespace AutomaticWaterMasking
                                 List<Way<Point>> waysContainingNextPoint = pointToWays[nextPointInViewport];
                                 Way<Point> otherwayAtNextPoint = GetNonViewPortWaySharingThisPoint(viewPort, waysContainingPoint);
                                 Point otherWayNextPoint = otherwayAtNextPoint.GetPointAtOffsetFromPoint(nextPointInViewport, 1);
-                                if ((followViewPort || (PointInViewport(otherWayNextPoint, origViewPort) && !PointTouchesButDoesntIntersectViewPort(otherWay, otherWayNextPoint, origViewPort))) && !touchingButNotTransectingFollowViewPort.Contains(curPoint))
+                                if ((followViewPort || (PointInViewport(otherWayNextPoint, origViewPort) && !PointTouchesButDoesntIntersectViewPort(otherWay, otherWayNextPoint, origViewPort)))
+                                    && !touchingButNotTransectingFollowViewPort.Contains(curPoint) && !touchingButNotTransectingDontFollowViewPort.Contains(curPoint))
                                 {
                                     intersections.Add(curPoint);
                                     if (followViewPort)
