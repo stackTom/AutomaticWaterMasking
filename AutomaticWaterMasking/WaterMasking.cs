@@ -609,7 +609,6 @@ namespace AutomaticWaterMasking
 
         public static void MergeMultipolygonWays(List<Way<Point>> waysInThisMultipolygon)
         {
-            HashSet<Way<Point>> merged = new HashSet<Way<Point>>();
             bool mergeFound = false;
             do
             {
@@ -653,8 +652,6 @@ namespace AutomaticWaterMasking
             Dictionary<string, string> wayIDsToType = new Dictionary<string, string>();
 
             XmlNodeList relationTags = d.GetElementsByTagName("relation");
-            HashSet<Way<Point>> toAdd = new HashSet<Way<Point>>();
-            HashSet<Way<Point>> toDelete = new HashSet<Way<Point>>();
             foreach (XmlElement rel in relationTags)
             {
                 // unite multipolygon pieces into one big linestring
@@ -663,7 +660,6 @@ namespace AutomaticWaterMasking
                 // for coastal ways. but if we make them a full polygon, then it is easy to determine that the water is inside the polygon
                 // here we compare every way to every other way.
                 List<Way<Point>> waysInThisMultipolygon = GetWaysInThisMultipolygonAndUpdateRelations(wayIDsToWays, rel, wayIDsToRelation, wayIDsToType);
-                string relationID = rel.GetAttribute("id");
                 // update relations
                 foreach (KeyValuePair<string, Way<Point>> kv in wayIDsToWays)
                 {
