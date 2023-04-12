@@ -1263,6 +1263,7 @@ namespace AutomaticWaterMasking
             List<Point> allIntersections = new List<Point>();
             Dictionary<Point, List<Way<Point>>> pointToWays = new Dictionary<Point, List<Way<Point>>>();
             List<Way<Point>> waysShouldBeLandPolygons = new List<Way<Point>>();
+            Way<Point> viewPortWithoutIntersections = new Way<Point>(viewPort);
 
             foreach (Way<Point> way in coastWays)
             {
@@ -1275,7 +1276,11 @@ namespace AutomaticWaterMasking
                 {
                     foreach (Point p in intersections)
                     {
-                        viewPort.Remove(p);
+                        // don't remove the original viewport edge points
+                        if (!viewPortWithoutIntersections.Contains(p))
+                        {
+                            viewPort.Remove(p);
+                        }
                         way.Remove(p);
                     }
                     // do this to remove the way from the coastWays list.
