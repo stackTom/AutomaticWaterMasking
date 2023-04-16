@@ -1082,6 +1082,17 @@ namespace AutomaticWaterMasking
             return followViewPort;
         }
 
+        /*
+        won't work for niche case of point touching but not intersecting the viewport edge, but next and/or previous points are on the edge...
+        this function assumes that a point touching inside, but not intersecting, the viewport will have next and previous points that are
+        inside the viewport. it does not appropriately create polygons in such a case if the next or previous points are on the viewport edge. Consider a
+        coast way that intersects the top of the viewport, goes towards the bottom of the viewport, touches the bottom viewport edge, then exits
+        the viewport using the left or right edge. In order to get such a polygon to build, we'd have to modify PointTouchesViewPortInside and
+        PointTouchesViewPortOutside to consider when next and previous points are on the viewport edge (aka contained in the intersections
+        list). This would break CleanOutsideSinglePointIntersections, and we'd need a more expensive function to clean these intersections
+        which would make the whole process very slow for complex coasts (like we found out in commit 520b1049b0828a7a9d2d1677e93adeb71ceab179).
+        I imagine that such a niche case will seldom happen (primarily when the viewport is exceedingly tiny), so it is not worth the effort to fix this.
+        */
         private static bool TryToBuildPolygons(List<Way<Point>> polygons, Dictionary<Point, List<Way<Point>>> pointToWays, ref Way<Point> startingWay, ref Way<Point> viewPort, Way<Point> origViewPort, ref int startingIdx, ref bool followViewPort, List<Point> intersections)
         {
             Way<Point> polygon = null;
