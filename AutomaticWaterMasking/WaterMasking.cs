@@ -1512,7 +1512,8 @@ namespace AutomaticWaterMasking
             }
         }
 
-        public static Bitmap GetMask(string outPath, int width, int height, Point NW, Point SE, List<Way<Point>> waterPolygons, List<Way<Point>>[] inlandPolygons)
+        // use better code from FSEarthTiles which supports ambiguous tiles, etc
+        public static Bitmap GetMask(int width, int height, Point NW, Point SE, List<Way<Point>> waterPolygons, List<Way<Point>> islands, List<Way<Point>>[] inlandPolygons)
         {
             Bitmap bmp = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
             decimal pixelsPerLon = Convert.ToDecimal(width) / (SE.X - NW.X);
@@ -1522,7 +1523,9 @@ namespace AutomaticWaterMasking
             {
                 g.FillRectangle(Brushes.White, 0, 0, bmp.Width, bmp.Height);
                 SolidBrush b = new SolidBrush(Color.Black);
+                // draw coast water polygons
                 DrawPolygons(bmp, g, b, pixelsPerLon, pixelsPerLat, NW, waterPolygons);
+                // now, draw the inland water
                 for (int i = 0; i < inlandPolygons.Length; i++)
                 {
                     if (i % 2 == 0)
@@ -1536,6 +1539,9 @@ namespace AutomaticWaterMasking
                         DrawPolygons(bmp, g, b, pixelsPerLon, pixelsPerLat, NW, inlandPolygons[i]);
                     }
                 }
+                // now draw the islands
+                b = new SolidBrush(Color.White);
+                DrawPolygons(bmp, g, b, pixelsPerLon, pixelsPerLat, NW, islands);
             }
 
             return bmp;
