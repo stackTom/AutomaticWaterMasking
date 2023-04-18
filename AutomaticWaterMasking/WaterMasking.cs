@@ -1064,7 +1064,7 @@ namespace AutomaticWaterMasking
             if (curWay.Equals(viewPort))
             {
                 // wrong orientation of vectors
-                if (!PointInViewport(next, origViewPort))
+                if (PointOutsideViewPort(next, otherWay, origViewPort))
                 {
                     throw new Exception("These vectors don't form valid polygons. Check the input data, and try again");
                 }
@@ -1104,13 +1104,13 @@ namespace AutomaticWaterMasking
                     followViewPort = false;
                 }
             }
-            else if (PointInViewport(next, origViewPort))
+            else if (PointOutsideViewPort(next, otherWay, origViewPort))
             {
-                followViewPort = false;
+                followViewPort = true;
             }
             else
             {
-                followViewPort = true;
+                followViewPort = false;
             }
 
             return followViewPort;
