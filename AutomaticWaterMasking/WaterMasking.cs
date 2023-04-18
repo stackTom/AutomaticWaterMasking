@@ -117,7 +117,7 @@ namespace AutomaticWaterMasking
 
         public bool ParallelTo(Edge e)
         {
-            return GetDelta(e) == 0;
+            return SafeCompare.SafeEquals(GetDelta(e), 0m);
         }
 
         // returns point of intersection, null if no intersection
@@ -867,7 +867,7 @@ namespace AutomaticWaterMasking
             }
         }
 
-        private static bool PointInViewport(Point p, Way<Point> viewPort)
+        private static Point[] MinMaxOfViewPort(Way<Point> viewPort)
         {
             Way<Point> temp = new Way<Point>(viewPort);
             temp.Sort(delegate(Point p1, Point p2)
@@ -902,13 +902,40 @@ namespace AutomaticWaterMasking
             decimal minY = temp[0].Y;
             decimal maxY = temp[temp.Count - 2].Y;
 
+            return new Point[] { new Point(minX, minY), new Point(maxX, maxY) };
+        }
+
+        private static bool PointOnViewPortEdge(Point p, Way<Point> viewPort)
+        {
+            Point[] minMax = MinMaxOfViewPort(viewPort);
+            decimal minX = minMax[0].X;
+            decimal minY = minMax[0].Y;
+            decimal maxX = minMax[1].X;
+            decimal maxY = minMax[1].Y;
+
+            if (SafeCompare.SafeEquals(p.X, minX) || SafeCompare.SafeEquals(p.X, maxX) || SafeCompare.SafeEquals(p.Y, minY) || SafeCompare.SafeEquals(p.Y, maxY))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool PointInViewport(Point p, Way<Point> viewPort)
+        {
+            Point[] minMax = MinMaxOfViewPort(viewPort);
+            decimal minX = minMax[0].X;
+            decimal minY = minMax[0].Y;
+            decimal maxX = minMax[1].X;
+            decimal maxY = minMax[1].Y;
+
             // outside viewport
             if (SafeCompare.SafeLessThan(p.X, minX) || SafeCompare.SafeGreaterThan(p.X, maxX) || SafeCompare.SafeLessThan(p.Y, minY) || SafeCompare.SafeGreaterThan(p.Y, maxY))
             {
                 return false;
             }
             // not outside, but exactly on the viewport
-            if (SafeCompare.SafeEquals(p.X, minX) || SafeCompare.SafeEquals(p.X, maxX) || SafeCompare.SafeEquals(p.Y, minY) || SafeCompare.SafeEquals(p.Y, maxY))
+            if (PointOnViewPortEdge(p, viewPort))
             {
                 return false;
             }
@@ -918,7 +945,7 @@ namespace AutomaticWaterMasking
 
         private static bool PointOutsideViewPort(Point p, Way<Point> wayContainingPoint, Way<Point> viewPort)
         {
-            return !PointInViewport(p, viewPort) && !PointOnViewPortEdge(viewPort, wayContainingPoint, p);
+            return !PointInViewport(p, viewPort) && !PointOnViewPortEdge(p, viewPort);
         }
 
         private static bool PointTouchesViewPortOutside(Way<Point> way, Point point, Way<Point> viewPort)
@@ -930,8 +957,8 @@ namespace AutomaticWaterMasking
             {
                 return false;
             }
-            bool prevPointInViewPort = PointInViewport(prevPoint, viewPort);
-            bool nextPointInViewPort = PointInViewport(nextPoint, viewPort);
+            bool prevPointInViewPort = PointInViewport(prevPoint, viewPort) || PointOnViewPortEdge(prevPoint, viewPort);
+            bool nextPointInViewPort = PointInViewport(nextPoint, viewPort) || PointOnViewPortEdge(nextPoint, viewPort);
             if (!nextPointInViewPort && !prevPointInViewPort)
             {
                 return true;
@@ -949,8 +976,8 @@ namespace AutomaticWaterMasking
             {
                 return false;
             }
-            bool prevPointInViewPort = PointInViewport(prevPoint, viewPort);
-            bool nextPointInViewPort = PointInViewport(nextPoint, viewPort);
+            bool prevPointInViewPort = PointInViewport(prevPoint, viewPort) || PointOnViewPortEdge(prevPoint, viewPort);
+            bool nextPointInViewPort = PointInViewport(nextPoint, viewPort) || PointOnViewPortEdge(nextPoint, viewPort);
             if (nextPointInViewPort && prevPointInViewPort)
             {
                 return true;
@@ -964,7 +991,7 @@ namespace AutomaticWaterMasking
             return PointTouchesViewPortInside(way, point, viewPort) || PointTouchesViewPortOutside(way, point, viewPort);
         }
 
-        private static bool PointOnViewPortEdge(Way<Point> viewPort, Way<Point> wayContainingPoint, Point p)
+        private static bool PointOnViewPortSegment(Way<Point> viewPort, Way<Point> wayContainingPoint, Point p)
         {
             Edge checkEdgeForward = new Edge(p, wayContainingPoint.GetPointAtOffsetFromPoint(p, 1));
             Edge checkEdgeBackward = new Edge(p, wayContainingPoint.GetPointAtOffsetFromPoint(p, -1));
@@ -976,7 +1003,7 @@ namespace AutomaticWaterMasking
                 Decimal dx = Math.Abs(cur.X - p.X);
                 Decimal dy = Math.Abs(cur.Y - p.Y);
 
-                if (!PointInViewport(p, viewPort) &&  (dx == 0 || dy == 0))
+                if (!PointInViewport(p, viewPort) &&  (SafeCompare.SafeEquals(dx, 0m) || SafeCompare.SafeEquals(dy, 0m)))
                 {
                     Edge viewPortEdge = new Edge(cur, next);
 
@@ -994,6 +1021,13 @@ namespace AutomaticWaterMasking
             return false;
         }
 
+        /*
+        Consider a coast way that starts with a point outside the viewport, intersects the top of the viewport, goes towards the bottom of the viewport, touches
+        the bottom viewport edge (the second point), then exits the viewport using the left or right edge, with the final point outside the viewport.
+        This will return true for that way, even though it clearly has some parts inside the viewport (although no individual point is inside the viewport).
+        More complex logic is required to fix this. However, I imagine that such a niche case will seldom happen (primarily when the viewport is exceedingly tiny),
+        so it is not worth the effort to fix this, unless users find an edge case I am overlooking that can trigger this frequently.
+        */
         private static bool WayOutsideViewPort(Way<Point> way, Way<Point> viewPort, List<Point> intersections)
         {
             foreach (Point p in way)
@@ -1037,7 +1071,7 @@ namespace AutomaticWaterMasking
             }
 
             // happens near -90/90 and -180/180 of lat and long
-            if (PointOnViewPortEdge(origViewPort, otherWay, last) && curPoint.Equals(last) && PointInViewport(prev, origViewPort) && PointInViewport(next, origViewPort))
+            if (PointOnViewPortEdge(last, origViewPort) && curPoint.Equals(last) && PointInViewport(prev, origViewPort) && PointInViewport(next, origViewPort))
             {
                 followViewPort = true;
             }
@@ -1082,17 +1116,6 @@ namespace AutomaticWaterMasking
             return followViewPort;
         }
 
-        /*
-        won't work for niche case of point touching but not intersecting the viewport edge, but next and/or previous points are on the edge...
-        this function assumes that a point touching inside, but not intersecting, the viewport will have next and previous points that are
-        inside the viewport. it does not appropriately create polygons in such a case if the next or previous points are on the viewport edge. Consider a
-        coast way that intersects the top of the viewport, goes towards the bottom of the viewport, touches the bottom viewport edge, then exits
-        the viewport using the left or right edge. In order to get such a polygon to build, we'd have to modify PointTouchesViewPortInside and
-        PointTouchesViewPortOutside to consider when next and previous points are on the viewport edge (aka contained in the intersections
-        list). This would break CleanOutsideSinglePointIntersections, and we'd need a more expensive function to clean these intersections
-        which would make the whole process very slow for complex coasts (like we found out in commit 520b1049b0828a7a9d2d1677e93adeb71ceab179).
-        I imagine that such a niche case will seldom happen (primarily when the viewport is exceedingly tiny), so it is not worth the effort to fix this.
-        */
         private static bool TryToBuildPolygons(List<Way<Point>> polygons, Dictionary<Point, List<Way<Point>>> pointToWays, ref Way<Point> startingWay, ref Way<Point> viewPort, Way<Point> origViewPort, ref int startingIdx, ref bool followViewPort, List<Point> intersections)
         {
             Way<Point> polygon = null;
@@ -1256,6 +1279,8 @@ namespace AutomaticWaterMasking
                 {
                     List<Way<Point>> waysContainingPoint = pointToWays[curPoint];
                     Way<Point> otherWay = GetNonViewPortWaySharingThisPoint(viewPort, waysContainingPoint);
+                    Point next = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
+                    Point prev = otherWay.GetPointAtOffsetFromPoint(curPoint, -1);
 
                     if (PointTouchesViewPortOutside(otherWay, curPoint, viewPort))
                     {
@@ -1263,6 +1288,32 @@ namespace AutomaticWaterMasking
                         viewPort.Remove(curPoint);
                         otherWay.Remove(curPoint);
                         i--;
+                    }
+                    else if (PointOutsideViewPort(prev, otherWay, viewPort))
+                    {
+                        while (PointOnViewPortSegment(viewPort, otherWay, curPoint) && !PointInViewport(next, viewPort))
+                        {
+                            Point nextCurPoint = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
+                            intersections.Remove(curPoint);
+                            viewPort.Remove(curPoint);
+                            otherWay.Remove(curPoint);
+                            i--;
+                            curPoint = nextCurPoint;
+                            next = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
+                        }
+                    }
+                    else if (PointOutsideViewPort(next, otherWay, viewPort))
+                    {
+                        while (PointOnViewPortSegment(viewPort, otherWay, curPoint) && !PointInViewport(prev, viewPort))
+                        {
+                            Point nextCurPoint = otherWay.GetPointAtOffsetFromPoint(curPoint, -1);
+                            intersections.Remove(curPoint);
+                            viewPort.Remove(curPoint);
+                            otherWay.Remove(curPoint);
+                            i--;
+                            curPoint = nextCurPoint;
+                            prev = otherWay.GetPointAtOffsetFromPoint(curPoint, -1);
+                        }
                     }
                 }
             }
