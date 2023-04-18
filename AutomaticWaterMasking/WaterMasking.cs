@@ -957,8 +957,8 @@ namespace AutomaticWaterMasking
             {
                 return false;
             }
-            bool prevPointInViewPort = PointInViewport(prevPoint, viewPort) || PointOnViewPortEdge(prevPoint, viewPort);
-            bool nextPointInViewPort = PointInViewport(nextPoint, viewPort) || PointOnViewPortEdge(nextPoint, viewPort);
+            bool prevPointInViewPort = PointInViewport(prevPoint, viewPort) || (PointOnViewPortEdge(prevPoint, viewPort) && !PointOnViewPortSegment(viewPort, way, prevPoint));
+            bool nextPointInViewPort = PointInViewport(nextPoint, viewPort) || (PointOnViewPortEdge(nextPoint, viewPort) && !PointOnViewPortSegment(viewPort, way, nextPoint));
             if (!nextPointInViewPort && !prevPointInViewPort)
             {
                 return true;
@@ -976,8 +976,8 @@ namespace AutomaticWaterMasking
             {
                 return false;
             }
-            bool prevPointInViewPort = PointInViewport(prevPoint, viewPort) || PointOnViewPortEdge(prevPoint, viewPort);
-            bool nextPointInViewPort = PointInViewport(nextPoint, viewPort) || PointOnViewPortEdge(nextPoint, viewPort);
+            bool prevPointInViewPort = PointInViewport(prevPoint, viewPort) || (PointOnViewPortEdge(prevPoint, viewPort) && !PointOnViewPortSegment(viewPort, way, prevPoint));
+            bool nextPointInViewPort = PointInViewport(nextPoint, viewPort) || (PointOnViewPortEdge(nextPoint, viewPort) && !PointOnViewPortSegment(viewPort, way, nextPoint));
             if (nextPointInViewPort && prevPointInViewPort)
             {
                 return true;
