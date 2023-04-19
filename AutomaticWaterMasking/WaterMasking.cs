@@ -1071,7 +1071,7 @@ namespace AutomaticWaterMasking
             }
 
             // happens near -90/90 and -180/180 of lat and long
-            if (PointOnViewPortEdge(last, origViewPort) && curPoint.Equals(last) && PointInViewport(prev, origViewPort) && PointInViewport(next, origViewPort))
+            if (PointOnViewPortEdge(last, origViewPort) && curPoint.Equals(last) && PointInViewport(prev, origViewPort) && PointOnViewPortEdge(next, origViewPort))
             {
                 followViewPort = true;
             }
