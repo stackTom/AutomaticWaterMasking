@@ -1060,7 +1060,6 @@ namespace AutomaticWaterMasking
             bool followViewPort = false;
             Point next = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
             Point prev = otherWay.GetPointAtOffsetFromPoint(curPoint, -1);
-            Point last = otherWay[otherWay.Count - 1];
             if (curWay.Equals(viewPort))
             {
                 // wrong orientation of vectors
@@ -1071,7 +1070,8 @@ namespace AutomaticWaterMasking
             }
 
             // happens near -90/90 and -180/180 of lat and long
-            if (PointOnViewPortEdge(last, origViewPort) && curPoint.Equals(last) && PointInViewport(prev, origViewPort) && PointOnViewPortEdge(next, origViewPort))
+            if ((Math.Abs(curPoint.X) == 180 || Math.Abs(curPoint.Y) == 90) && PointInViewport(prev, origViewPort) &&
+                PointOnViewPortEdge(next, origViewPort) && !curWay.Equals(viewPort))
             {
                 followViewPort = true;
             }
@@ -1285,9 +1285,12 @@ namespace AutomaticWaterMasking
                     if (PointTouchesViewPortOutside(otherWay, curPoint, viewPort))
                     {
                         intersections.Remove(curPoint);
-                        viewPort.Remove(curPoint);
+                        if (viewPort.Contains(curPoint))
+                        {
+                            viewPort.Remove(curPoint);
+                            i--;
+                        }
                         otherWay.Remove(curPoint);
-                        i--;
                     }
                     else if (PointOutsideViewPort(prev, otherWay, viewPort))
                     {
@@ -1295,9 +1298,12 @@ namespace AutomaticWaterMasking
                         {
                             Point nextCurPoint = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
                             intersections.Remove(curPoint);
-                            viewPort.Remove(curPoint);
+                            if (viewPort.Contains(curPoint))
+                            {
+                                viewPort.Remove(curPoint);
+                                i--;
+                            }
                             otherWay.Remove(curPoint);
-                            i--;
                             curPoint = nextCurPoint;
                             next = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
                         }
@@ -1308,11 +1314,30 @@ namespace AutomaticWaterMasking
                         {
                             Point nextCurPoint = otherWay.GetPointAtOffsetFromPoint(curPoint, -1);
                             intersections.Remove(curPoint);
-                            viewPort.Remove(curPoint);
+                            if (viewPort.Contains(curPoint))
+                            {
+                                viewPort.Remove(curPoint);
+                                i--;
+                            }
                             otherWay.Remove(curPoint);
-                            i--;
                             curPoint = nextCurPoint;
                             prev = otherWay.GetPointAtOffsetFromPoint(curPoint, -1);
+                        }
+                    }
+                    else
+                    {
+                        Point nnext = otherWay.GetPointAtOffsetFromPoint(next, 1);
+                        while (PointOnViewPortSegment(viewPort, otherWay, nnext))
+                        {
+                            intersections.Remove(next);
+                            if (viewPort.Contains(next))
+                            {
+                                viewPort.Remove(next);
+                                i--;
+                            }
+                            otherWay.Remove(next);
+                            next = nnext;
+                            nnext = otherWay.GetPointAtOffsetFromPoint(next, 1);
                         }
                     }
                 }
