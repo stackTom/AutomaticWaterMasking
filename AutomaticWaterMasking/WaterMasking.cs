@@ -1069,13 +1069,7 @@ namespace AutomaticWaterMasking
                 }
             }
 
-            // happens near -90/90 and -180/180 of lat and long
-            if ((Math.Abs(curPoint.X) == 180 || Math.Abs(curPoint.Y) == 90) && PointInViewport(prev, origViewPort) &&
-                PointOnViewPortEdge(next, origViewPort) && !curWay.Equals(viewPort))
-            {
-                followViewPort = true;
-            }
-            else if (PointTouchesViewPortInside(otherWay, curPoint, origViewPort) && intersections.Contains(curPoint) && intersections.Count > 0)
+            if (PointTouchesViewPortInside(otherWay, curPoint, origViewPort) && intersections.Contains(curPoint) && intersections.Count > 0)
             {
                 // basically, if the point touches but doesn't transect the viewport, but the way goes backwards on the viewport...
                 // then follow the viewport, as it can't possibly form this current polygon if it's going backwards
@@ -1104,7 +1098,7 @@ namespace AutomaticWaterMasking
                     followViewPort = false;
                 }
             }
-            else if (PointOutsideViewPort(next, otherWay, origViewPort))
+            else if (PointOutsideViewPort(next, otherWay, origViewPort) || (!curWay.Equals(viewPort) && PointOnViewPortEdge(next, viewPort)))
             {
                 followViewPort = true;
             }
