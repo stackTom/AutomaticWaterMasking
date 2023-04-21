@@ -1167,7 +1167,7 @@ namespace AutomaticWaterMasking
                             // Examples are Tiles (-14, 143) (54, -59) (55, -61) (66, -62) (72, -109) (60, -45)
                             Point next = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
                             Point previous = otherWay.GetPointAtOffsetFromPoint(curPoint, -1);
-                            if (PointInViewport(next, origViewPort) && PointInViewport(previous, origViewPort))
+                            if (!PointOutsideViewPort(next, otherWay, origViewPort) && !PointOutsideViewPort(previous, otherWay, origViewPort))
                             {
                                 if (((!curWay.Equals(viewPort) && followViewPort) || (curWay.Equals(viewPort) && !followViewPort))
                                     && !touchingButNotTransectingFollowViewPort.Contains(curPoint) && !touchingButNotTransectingDontFollowViewPort.Contains(curPoint))
