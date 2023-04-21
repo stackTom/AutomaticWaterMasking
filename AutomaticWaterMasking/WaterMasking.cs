@@ -1078,7 +1078,7 @@ namespace AutomaticWaterMasking
                 }
             }
             else if (PointOutsideViewPort(next, otherWay, origViewPort) ||
-                (!curWay.Equals(viewPort) && PointOnViewPortEdge(next, viewPort) && !curPoint.Equals(otherWay[0])))
+                (!curWay.Equals(viewPort) && (PointOnViewPortSegment(origViewPort, otherWay, next))))
             {
                 followViewPort = true;
             }
