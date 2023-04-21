@@ -1059,7 +1059,6 @@ namespace AutomaticWaterMasking
         {
             bool followViewPort = false;
             Point next = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
-            Point prev = otherWay.GetPointAtOffsetFromPoint(curPoint, -1);
             if (curWay.Equals(viewPort))
             {
                 // wrong orientation of vectors
@@ -1321,7 +1320,7 @@ namespace AutomaticWaterMasking
                     else
                     {
                         Point nnext = otherWay.GetPointAtOffsetFromPoint(next, 1);
-                        while (PointOnViewPortSegment(viewPort, otherWay, nnext))
+                        while (PointOnViewPortSegment(viewPort, otherWay, next) && PointOnViewPortSegment(viewPort, otherWay, nnext))
                         {
                             intersections.Remove(next);
                             if (viewPort.Contains(next))
