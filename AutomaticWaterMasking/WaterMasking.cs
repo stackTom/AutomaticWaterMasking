@@ -1068,7 +1068,7 @@ namespace AutomaticWaterMasking
                     timesAroundLoop++;
                 }
                 int otherWayIdx = origViewPort.IndexOf(otherWayPoint);
-                if (otherWayIdx <= viewPortIdx && !curPoint.Equals(polygon[0]))
+                if (otherWayIdx < viewPortIdx && !curPoint.Equals(polygon[0]))
                 {
                     followViewPort = true;
                 }
