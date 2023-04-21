@@ -953,7 +953,7 @@ namespace AutomaticWaterMasking
             Point nextPoint = way.GetPointAtOffsetFromPoint(point, 1);
             Point prevPoint = way.GetPointAtOffsetFromPoint(point, -1);
 
-            if (!viewPort.Contains(point))
+            if (!viewPort.Contains(point) || point.Equals(way[0]) || point.Equals(way[way.Count - 1]))
             {
                 return false;
             }
@@ -972,7 +972,7 @@ namespace AutomaticWaterMasking
             Point nextPoint = way.GetPointAtOffsetFromPoint(point, 1);
             Point prevPoint = way.GetPointAtOffsetFromPoint(point, -1);
 
-            if (!viewPort.Contains(point))
+            if (!viewPort.Contains(point) || point.Equals(way[0]) || point.Equals(way[way.Count - 1]))
             {
                 return false;
             }
@@ -1068,7 +1068,7 @@ namespace AutomaticWaterMasking
                     timesAroundLoop++;
                 }
                 int otherWayIdx = origViewPort.IndexOf(otherWayPoint);
-                if (otherWayIdx < viewPortIdx && !curPoint.Equals(polygon[0]))
+                if (otherWayIdx <= viewPortIdx && !curPoint.Equals(polygon[0]))
                 {
                     followViewPort = true;
                 }
@@ -1077,7 +1077,8 @@ namespace AutomaticWaterMasking
                     followViewPort = false;
                 }
             }
-            else if (PointOutsideViewPort(next, otherWay, origViewPort) || (!curWay.Equals(viewPort) && PointOnViewPortEdge(next, viewPort)))
+            else if (PointOutsideViewPort(next, otherWay, origViewPort) ||
+                (!curWay.Equals(viewPort) && PointOnViewPortEdge(next, viewPort) && !curPoint.Equals(otherWay[0])))
             {
                 followViewPort = true;
             }
