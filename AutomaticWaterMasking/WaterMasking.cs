@@ -1021,26 +1021,6 @@ namespace AutomaticWaterMasking
             return false;
         }
 
-        /*
-        Consider a coast way that starts with a point outside the viewport, intersects the top of the viewport, goes towards the bottom of the viewport, touches
-        the bottom viewport edge (the second point), then exits the viewport using the left or right edge, with the final point outside the viewport.
-        This will return true for that way, even though it clearly has some parts inside the viewport (although no individual point is inside the viewport).
-        More complex logic is required to fix this. However, I imagine that such a niche case will seldom happen (primarily when the viewport is exceedingly tiny),
-        so it is not worth the effort to fix this, unless users find an edge case I am overlooking that can trigger this frequently.
-        */
-        private static bool WayOutsideViewPort(Way<Point> way, Way<Point> viewPort, List<Point> intersections)
-        {
-            foreach (Point p in way)
-            {
-                if (PointInViewport(p, viewPort) && !intersections.Contains(p))
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
         private static Way<Point> GetNonViewPortWaySharingThisPoint(Way<Point> viewPort, List<Way<Point>> waysContainingPoint)
         {
             // choose the other way that is not the viewPort
@@ -1352,23 +1332,7 @@ namespace AutomaticWaterMasking
                 {
                     continue;
                 }
-                if (WayOutsideViewPort(way, viewPort, intersections))
-                {
-                    foreach (Point p in intersections)
-                    {
-                        // don't remove the original viewport edge points
-                        if (!viewPortWithoutIntersections.Contains(p))
-                        {
-                            viewPort.Remove(p);
-                        }
-                        way.Remove(p);
-                    }
-                    // do this to remove the way from the coastWays list.
-                    // won't be actually made into one of the other polygons if not closed
-                    // even if it is closed but it's outside the viewport, it won't matter
-                    waysShouldBeLandPolygons.Add(way);
-                }
-                else if (way.IsClosedWay())
+                if (way.IsClosedWay())
                 {
                     // if the way is circular and only touches the viewport at singular points (rather than cutting through it)
                     // treat these was as land polygons
