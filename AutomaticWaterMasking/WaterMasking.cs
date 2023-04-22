@@ -1324,7 +1324,6 @@ namespace AutomaticWaterMasking
             List<Point> allIntersections = new List<Point>();
             Dictionary<Point, List<Way<Point>>> pointToWays = new Dictionary<Point, List<Way<Point>>>();
             List<Way<Point>> waysShouldBeLandPolygons = new List<Way<Point>>();
-            Way<Point> viewPortWithoutIntersections = new Way<Point>(viewPort);
 
             foreach (Way<Point> way in coastWays)
             {
