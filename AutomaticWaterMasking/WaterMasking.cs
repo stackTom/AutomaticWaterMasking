@@ -953,7 +953,7 @@ namespace AutomaticWaterMasking
             Point nextPoint = way.GetPointAtOffsetFromPoint(point, 1);
             Point prevPoint = way.GetPointAtOffsetFromPoint(point, -1);
 
-            if (!viewPort.Contains(point) || point.Equals(way[0]) || point.Equals(way[way.Count - 1]))
+            if (!viewPort.Contains(point) || (!way.IsClosedWay() && (point.Equals(way[0]) || point.Equals(way[way.Count - 1]))))
             {
                 return false;
             }
@@ -972,7 +972,7 @@ namespace AutomaticWaterMasking
             Point nextPoint = way.GetPointAtOffsetFromPoint(point, 1);
             Point prevPoint = way.GetPointAtOffsetFromPoint(point, -1);
 
-            if (!viewPort.Contains(point) || point.Equals(way[0]) || point.Equals(way[way.Count - 1]))
+            if (!viewPort.Contains(point) || (!way.IsClosedWay() && (point.Equals(way[0]) || point.Equals(way[way.Count - 1]))))
             {
                 return false;
             }
