@@ -913,9 +913,31 @@ namespace AutomaticWaterMasking
             decimal maxX = minMax[1].X;
             decimal maxY = minMax[1].Y;
 
-            if (SafeCompare.SafeEquals(p.X, minX) || SafeCompare.SafeEquals(p.X, maxX) || SafeCompare.SafeEquals(p.Y, minY) || SafeCompare.SafeEquals(p.Y, maxY))
+            if (SafeCompare.SafeEquals(p.X, minX) || SafeCompare.SafeEquals(p.X, maxX))
             {
-                return true;
+                if (SafeCompare.SafeEquals(p.Y, minY) || SafeCompare.SafeEquals(p.Y, maxY))
+                {
+                    return true;
+                }
+                if (SafeCompare.SafeGreaterThan(p.Y, minY) && SafeCompare.SafeLessThan(p.Y, maxY))
+                {
+                    return true;
+                }
+
+                return false;
+            }
+            if (SafeCompare.SafeEquals(p.Y, minY) || SafeCompare.SafeEquals(p.Y, maxY))
+            {
+                if (SafeCompare.SafeEquals(p.X, minX) || SafeCompare.SafeEquals(p.X, maxX))
+                {
+                    return true;
+                }
+                if (SafeCompare.SafeGreaterThan(p.X, minX) && SafeCompare.SafeLessThan(p.X, maxX))
+                {
+                    return true;
+                }
+
+                return false;
             }
 
             return false;
