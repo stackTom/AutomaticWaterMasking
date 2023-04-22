@@ -1266,6 +1266,7 @@ namespace AutomaticWaterMasking
         }
 
         // remove intersections where a way intersects with the viewPort at a single point from the outside
+        // TODO: need to clean up some repetitive code in the below function
         private static void CleanOutsideSinglePointIntersections(Dictionary<Point, List<Way<Point>>> pointToWays, Way<Point> viewPort, List<Point> intersections)
         {
             for (int i = 0; i < viewPort.Count; i++)
@@ -1278,6 +1279,29 @@ namespace AutomaticWaterMasking
                     Point next = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
                     Point prev = otherWay.GetPointAtOffsetFromPoint(curPoint, -1);
 
+                    if (!otherWay.IsClosedWay())
+                    {
+                        if (curPoint.Equals(otherWay[0]) && PointOutsideViewPort(next, otherWay, viewPort))
+                        {
+                            intersections.Remove(curPoint);
+                            if (viewPort.Contains(curPoint))
+                            {
+                                viewPort.Remove(curPoint);
+                                i--;
+                            }
+                            otherWay.Remove(curPoint);
+                        }
+                        else if (curPoint.Equals(otherWay[otherWay.Count - 1]) && PointOutsideViewPort(prev, otherWay, viewPort))
+                        {
+                            intersections.Remove(curPoint);
+                            if (viewPort.Contains(curPoint))
+                            {
+                                viewPort.Remove(curPoint);
+                                i--;
+                            }
+                            otherWay.Remove(curPoint);
+                        }
+                    }
                     if (PointTouchesViewPortOutside(otherWay, curPoint, viewPort))
                     {
                         intersections.Remove(curPoint);
