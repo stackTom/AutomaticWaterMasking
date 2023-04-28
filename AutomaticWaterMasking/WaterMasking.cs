@@ -786,9 +786,6 @@ namespace AutomaticWaterMasking
                     {
                         try
                         {
-                            // make sure to kill any zombie queries...
-                            wc.DownloadString("http://overpass-api.de/api/kill_my_queries");
-
                             Console.WriteLine("Downloading OSM data using server: " + server + ". This might take a while. Please wait...");
                             Console.WriteLine(queryParams);
                             contents = wc.DownloadString(server + queryParams);
