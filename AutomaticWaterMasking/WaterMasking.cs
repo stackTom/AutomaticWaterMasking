@@ -759,13 +759,18 @@ namespace AutomaticWaterMasking
         {
             XmlDocument d = new XmlDocument();
             d.LoadXml(OSM);
-            XmlNodeList nodeTags = d.GetElementsByTagName("node");
-            foreach (XmlElement node in nodeTags)
+            XmlNodeList tagsToFix = d.GetElementsByTagName("node");
+            foreach (XmlElement node in tagsToFix)
             {
                 Way<Point>.AddMissingOSMAttributes(node);
             }
-            nodeTags = d.GetElementsByTagName("way");
-            foreach (XmlElement node in nodeTags)
+            tagsToFix = d.GetElementsByTagName("way");
+            foreach (XmlElement node in tagsToFix)
+            {
+                Way<Point>.AddMissingOSMAttributes(node);
+            }
+            tagsToFix = d.GetElementsByTagName("relation");
+            foreach (XmlElement node in tagsToFix)
             {
                 Way<Point>.AddMissingOSMAttributes(node);
             }
