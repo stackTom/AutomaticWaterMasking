@@ -626,7 +626,7 @@ namespace AutomaticWaterMasking
                             Way<Point> mergedWay = way1.MergePointToPoint(way2);
                             if (mergedWay != null)
                             {
-                                mergedWay.wayID = way1.wayID;
+                                mergedWay.wayID = way1.wayID + "m";
                                 waysInThisMultipolygon.Add(mergedWay);
                                 waysInThisMultipolygon.Remove(way1);
                                 waysInThisMultipolygon.Remove(way2);
@@ -652,6 +652,8 @@ namespace AutomaticWaterMasking
             Dictionary<string, string> wayIDsToType = new Dictionary<string, string>();
 
             XmlNodeList relationTags = d.GetElementsByTagName("relation");
+            List<Way<Point>> toRemove = new List<Way<Point>>();
+            List<Way<Point>> toAdd = new List<Way<Point>>();
             foreach (XmlElement rel in relationTags)
             {
                 // unite multipolygon pieces into one big linestring
@@ -676,20 +678,36 @@ namespace AutomaticWaterMasking
 
                 if (mergeMultipolygons)
                 {
-                    // remove all the ones in the multipolygon and only re add them after they have been merged
+                    // mark all the ones that are in this multipolygon for deletion eventually
+                    // don't delete them yet as sometimes, multiple multipolygons can use one way...
                     foreach (Way<Point> way in waysInThisMultipolygon)
                     {
-                        wayIDsToWays.Remove(way.wayID);
+                        if (!toRemove.Contains(way))
+                        {
+                            toRemove.Add(way);
+                        }
                     }
                     MergeMultipolygonWays(waysInThisMultipolygon);
+
+                    // add new merged ways to eventually be added to wayIDsToWays
+                    // don't just add them now, otherwise, can have their relation set to null above...
                     foreach (Way<Point> way in waysInThisMultipolygon)
                     {
-                        if (!wayIDsToWays.ContainsKey(way.wayID))
+                        if (!toAdd.Contains(way))
                         {
-                            wayIDsToWays.Add(way.wayID, way);
+                            toAdd.Add(way);
                         }
                     }
                 }
+            }
+
+            foreach (Way<Point> way in toRemove)
+            {
+                wayIDsToWays.Remove(way.wayID);
+            }
+            foreach (Way<Point> way in toAdd)
+            {
+                wayIDsToWays.Add(way.wayID, way);
             }
 
             return wayIDsToWays;
