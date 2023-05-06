@@ -311,6 +311,27 @@ namespace AutomaticWaterMasking
             return this.wayID == cmp.wayID;
         }
 
+        // Compare to other way by looking at contents of ways, not the id's
+        // Orientation matters...
+        public bool DeepEquals(object obj)
+        {
+            Way<T> cmp = (Way<T>)obj;
+            if (this.Count != cmp.Count)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < this.Count; i++)
+            {
+                if (!this[i].Equals(cmp[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         public override int GetHashCode()
         {
             return this.wayID.GetHashCode();
