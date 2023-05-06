@@ -442,10 +442,14 @@ namespace AutomaticWaterMasking
             nodeEle.SetAttribute("user", "AutomaticWaterMasker");
         }
 
-        public XmlElement CreateOSMXMLWayNodeAndNDEles(XmlDocument d, XmlElement osmEle, string wayID, int startIdx)
+        public XmlElement CreateOSMXMLWayNodeAndNDEles(XmlDocument d, XmlElement osmEle, string wayID, string relation, int startIdx)
         {
             XmlElement wayEle = d.CreateElement(string.Empty, "way", string.Empty);
             wayEle.SetAttribute("id", wayID);
+            if (relation != null)
+            {
+                wayEle.SetAttribute("relation", relation);
+            }
             AddMissingOSMAttributes(wayEle);
 
             foreach (Point p in this)
@@ -481,7 +485,7 @@ namespace AutomaticWaterMasking
             XmlElement metaEle = d.CreateElement(string.Empty, "meta", string.Empty);
             osmEle.AppendChild(metaEle);
             int i = 1; // must start at 1 or get error in JOSM...
-            XmlElement wayEle = CreateOSMXMLWayNodeAndNDEles(d, osmEle, this.wayID != null ? this.wayID : "1", i);
+            XmlElement wayEle = CreateOSMXMLWayNodeAndNDEles(d, osmEle, this.wayID != null ? this.wayID : "1", this.relation, i);
 
             osmEle.AppendChild(wayEle);
 
@@ -639,6 +643,25 @@ namespace AutomaticWaterMasking
             } while (mergeFound);
         }
 
+        private static Dictionary<string, string> GetWayIDsToRelation(XmlDocument d, Dictionary<string, List<string>> wayIDsToWayNodes, Dictionary<string, Point> nodeIDsToCoords)
+        {
+            Dictionary<string, string> wayIDsToRelations = new Dictionary<string, string>();
+
+            XmlNodeList wayTags = d.GetElementsByTagName("way");
+            foreach (XmlElement way in wayTags)
+            {
+                string relation = way.GetAttribute("relation");
+                string id = way.GetAttribute("id");
+
+                if (relation != null && relation != "")
+                {
+                    wayIDsToRelations.Add(id, relation);
+                }
+            }
+
+            return wayIDsToRelations;
+        }
+
         public static Dictionary<string, Way<Point>> GetWays(string OSMKML, bool mergeMultipolygons)
         {
             XmlDocument d = new XmlDocument();
@@ -648,8 +671,19 @@ namespace AutomaticWaterMasking
             Dictionary<string, Point> nodeIDsToCoords = GetNodeIDsToCoords(d);
             Dictionary<string, Way<Point>> wayIDsToWays = GetWayIDsToWays(d, wayIDsToWayNodes, nodeIDsToCoords);
             // POSSIBLE BUG: can a way every be both inner and outer in a relationship?
-            Dictionary<string, string> wayIDsToRelation = new Dictionary<string, string>();
+            Dictionary<string, string> wayIDsToRelation = GetWayIDsToRelation(d, wayIDsToWayNodes, nodeIDsToCoords);
             Dictionary<string, string> wayIDsToType = new Dictionary<string, string>();
+            foreach (KeyValuePair<string, Way<Point>> kv in wayIDsToWays)
+            {
+                string wayID = kv.Key;
+                Way<Point> way = kv.Value;
+                way.relation = null;
+                way.wayID = wayID;
+                if (wayIDsToRelation.ContainsKey(wayID))
+                {
+                    way.relation = wayIDsToRelation[wayID];
+                }
+            }
 
             XmlNodeList relationTags = d.GetElementsByTagName("relation");
             List<Way<Point>> toRemove = new List<Way<Point>>();
@@ -729,7 +763,7 @@ namespace AutomaticWaterMasking
             int i = 1; // must start at 1 or get error in JOSM...
             foreach (Way<Point> way in ways)
             {
-                XmlElement wayEle = way.CreateOSMXMLWayNodeAndNDEles(d, osmEle, i.ToString(), i);
+                XmlElement wayEle = way.CreateOSMXMLWayNodeAndNDEles(d, osmEle, i.ToString(), way.relation, i);
                 osmEle.AppendChild(wayEle);
                 i += way.Count;
             }
