@@ -454,6 +454,16 @@ namespace AutomaticWaterMasking
             return intersections.Count > 0 ? intersections : null;
         }
 
+        public decimal Area()
+        {
+            // credit: https://stackoverflow.com/questions/2034540/calculating-area-of-irregular-polygon-in-c-sharp
+            decimal area = Math.Abs(this.Take(this.Count - 1)
+                   .Select((p, i) => (this[i + 1].X - p.X) * (this[i + 1].Y + p.Y))
+                   .Sum() / 2);
+
+            return area;
+        }
+
         public static void AddMissingOSMAttributes(XmlElement nodeEle)
         {
             nodeEle.SetAttribute("uid", "1");
@@ -1635,27 +1645,74 @@ namespace AutomaticWaterMasking
             return pixel;
         }
 
-        private static void DrawPolygons(Bitmap bmp, Graphics g, SolidBrush b, decimal pixelsPerLon, decimal pixelsPerLat, Point NW, List<Way<Point>> polygons)
+        private static void DrawPolygon(Graphics g, SolidBrush b, decimal pixelsPerLon, decimal pixelsPerLat, AutomaticWaterMasking.Point NW, Way<AutomaticWaterMasking.Point> way)
         {
-            foreach (Way<Point> way in polygons)
+            List<PointF> l = new List<PointF>();
+            for (int i = 0; i < way.Count - 1; i++) // FillPolygon polygons don't need last AutomaticWaterMasking.Point, hence - 1
             {
+                AutomaticWaterMasking.Point p = way[i];
+                AutomaticWaterMasking.Point pixel = WaterMasking.CoordToPixel(p.Y, p.X, NW.Y, NW.X, pixelsPerLon, pixelsPerLat);
 
-                List<PointF> l = new List<PointF>();
-                for (int i = 0; i < way.Count - 1; i++) // FillPolygon polygons don't need last point, hence - 1
-                {
-                    Point p = way[i];
-                    Point pixel = CoordToPixel(p.Y, p.X, NW.Y, NW.X, pixelsPerLon, pixelsPerLat);
+                l.Add(new PointF((float)pixel.X, (float)pixel.Y));
+            }
+            PointF[] pf = l.ToArray();
+            g.FillPolygon(b, pf);
 
-                    l.Add(new PointF((float)pixel.X, (float)pixel.Y));
-                }
-                PointF[] pf = l.ToArray();
-                g.FillPolygon(b, pf);
+        }
 
+        private static void DrawPolygons(Bitmap bmp, Graphics g, SolidBrush b, decimal pixelsPerLon, decimal pixelsPerLat, AutomaticWaterMasking.Point NW, List<Way<AutomaticWaterMasking.Point>> polygons)
+        {
+            foreach (Way<AutomaticWaterMasking.Point> way in polygons)
+            {
+                DrawPolygon(g, b, pixelsPerLon, pixelsPerLat, NW, way);
             }
         }
 
+        private static void DrawInlandPolys(List<Way<AutomaticWaterMasking.Point>> polys, Bitmap bmp, Graphics g, AutomaticWaterMasking.Point NW, decimal pixelsPerLon, decimal pixelsPerLat)
+        {
+            SolidBrush b = null;
+
+            // sort from biggest to smallest
+            polys.Sort(delegate (Way<AutomaticWaterMasking.Point> way1, Way<AutomaticWaterMasking.Point> way2)
+            {
+                // credit: https://stackoverflow.com/questions/2034540/calculating-area-of-irregular-polygon-in-c-sharp
+                decimal area1 = way1.Area();
+                decimal area2 = way2.Area();
+                if (area1 - area2 > 0)
+                {
+                    return -1;
+                }
+                if (area1 - area2 < 0)
+                {
+                    return 1;
+                }
+
+                return 0;
+            });
+
+            foreach (Way<AutomaticWaterMasking.Point> way in polys)
+            {
+                int idx = polys.IndexOf(way);
+                if (way.relation == null || way.relation == "outer")
+                {
+                    b = new SolidBrush(Color.Black);
+                    DrawPolygon(g, b, pixelsPerLon, pixelsPerLat, NW, way);
+                }
+                else if (way.relation == "inner")
+                {
+                    b = new SolidBrush(Color.White);
+                    DrawPolygon(g, b, pixelsPerLon, pixelsPerLat, NW, way);
+                }
+                else
+                {
+                    throw new Exception("Unknown way relation");
+                }
+            }
+        }
+
+
         // use better code from FSEarthTiles which supports ambiguous tiles, etc
-        public static Bitmap GetMask(int width, int height, Point NW, Point SE, List<Way<Point>> waterPolygons, List<Way<Point>> islands, List<Way<Point>>[] inlandPolygons)
+        public static Bitmap GetMask(int width, int height, Point NW, Point SE, List<Way<Point>> waterPolygons, List<Way<Point>> islands, List<Way<Point>> inlandPolygons)
         {
             Bitmap bmp = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
             decimal pixelsPerLon = Convert.ToDecimal(width) / (SE.X - NW.X);
@@ -1663,28 +1720,34 @@ namespace AutomaticWaterMasking
 
             using (Graphics g = Graphics.FromImage(bmp))
             {
+                List<Way<AutomaticWaterMasking.Point>> uniqueInlandPolys = new List<Way<AutomaticWaterMasking.Point>>();
                 g.FillRectangle(Brushes.White, 0, 0, bmp.Width, bmp.Height);
                 SolidBrush b = new SolidBrush(Color.Black);
                 // draw coast water polygons
                 DrawPolygons(bmp, g, b, pixelsPerLon, pixelsPerLat, NW, waterPolygons);
                 // now, draw the inland water
-                for (int i = 0; i < inlandPolygons.Length; i++)
+                // pre-populate so below loop runs correctly
+                uniqueInlandPolys.Add(inlandPolygons[0]);
+                foreach (Way<AutomaticWaterMasking.Point> inlandPoly in inlandPolygons)
                 {
-                    if (i % 2 == 0)
+                    foreach (Way<AutomaticWaterMasking.Point> alreadyThere in uniqueInlandPolys)
                     {
-                        b = new SolidBrush(Color.Black);
-                        DrawPolygons(bmp, g, b, pixelsPerLon, pixelsPerLat, NW, inlandPolygons[i]);
+                        if (inlandPoly.DeepEquals(alreadyThere))
+                        {
+                            break;
+                        }
                     }
-                    else
-                    {
-                        b = new SolidBrush(Color.White);
-                        DrawPolygons(bmp, g, b, pixelsPerLon, pixelsPerLat, NW, inlandPolygons[i]);
-                    }
+
+                    // not there
+                    uniqueInlandPolys.Add(inlandPoly);
                 }
                 // now draw the islands
                 b = new SolidBrush(Color.White);
                 DrawPolygons(bmp, g, b, pixelsPerLon, pixelsPerLat, NW, islands);
+                // now, draw the layered inland polygon
+                DrawInlandPolys(uniqueInlandPolys, bmp, g, NW, pixelsPerLon, pixelsPerLat);
             }
+
 
             return bmp;
         }
