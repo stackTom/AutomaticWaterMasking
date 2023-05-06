@@ -15,9 +15,7 @@ public class AutomaticWaterMaskingTest
             for (int startLon = startAt; startLon < 180; startLon++)
             {
                 List<Way<AutomaticWaterMasking.Point>> coastWaterPolygons = new List<Way<AutomaticWaterMasking.Point>>();
-                List<Way<AutomaticWaterMasking.Point>>[] inlandPolygons = new[] {
-                    new List<Way<AutomaticWaterMasking.Point>>(), new List<Way<AutomaticWaterMasking.Point>>(), new List<Way<AutomaticWaterMasking.Point>>()
-                };
+                List<Way<AutomaticWaterMasking.Point>> inlandPolygons = new List<Way<Point>>();
                 List<Way<Point>> islands = new List<Way<Point>>();
 
                 Console.WriteLine("Creating " + startLat.ToString() + ", " + startLon.ToString());
