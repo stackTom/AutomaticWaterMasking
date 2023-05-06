@@ -1645,7 +1645,7 @@ namespace AutomaticWaterMasking
             return pixel;
         }
 
-        private static void DrawPolygon(Graphics g, SolidBrush b, decimal pixelsPerLon, decimal pixelsPerLat, AutomaticWaterMasking.Point NW, Way<AutomaticWaterMasking.Point> way)
+        public static void DrawPolygon(Graphics g, SolidBrush b, decimal pixelsPerLon, decimal pixelsPerLat, AutomaticWaterMasking.Point NW, Way<AutomaticWaterMasking.Point> way)
         {
             List<PointF> l = new List<PointF>();
             for (int i = 0; i < way.Count - 1; i++) // FillPolygon polygons don't need last AutomaticWaterMasking.Point, hence - 1
@@ -1660,7 +1660,7 @@ namespace AutomaticWaterMasking
 
         }
 
-        private static void DrawPolygons(Bitmap bmp, Graphics g, SolidBrush b, decimal pixelsPerLon, decimal pixelsPerLat, AutomaticWaterMasking.Point NW, List<Way<AutomaticWaterMasking.Point>> polygons)
+        public static void DrawPolygons(Bitmap bmp, Graphics g, SolidBrush b, decimal pixelsPerLon, decimal pixelsPerLat, AutomaticWaterMasking.Point NW, List<Way<AutomaticWaterMasking.Point>> polygons)
         {
             foreach (Way<AutomaticWaterMasking.Point> way in polygons)
             {
@@ -1668,7 +1668,7 @@ namespace AutomaticWaterMasking
             }
         }
 
-        private static void DrawInlandPolys(List<Way<AutomaticWaterMasking.Point>> polys, Bitmap bmp, Graphics g, AutomaticWaterMasking.Point NW, decimal pixelsPerLon, decimal pixelsPerLat)
+        public static void DrawInlandPolys(List<Way<AutomaticWaterMasking.Point>> polys, Bitmap bmp, Graphics g, AutomaticWaterMasking.Point NW, decimal pixelsPerLon, decimal pixelsPerLat)
         {
             SolidBrush b = null;
 
