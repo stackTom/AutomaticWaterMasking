@@ -1692,7 +1692,6 @@ namespace AutomaticWaterMasking
 
             foreach (Way<AutomaticWaterMasking.Point> way in polys)
             {
-                int idx = polys.IndexOf(way);
                 if (way.relation == null || way.relation == "outer")
                 {
                     b = new SolidBrush(Color.Black);
