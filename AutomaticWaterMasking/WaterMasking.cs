@@ -1638,14 +1638,12 @@ namespace AutomaticWaterMasking
             CreatePolygons(coastWaterPolygons, islands, inlandPolygons, coastXML, waterXML, viewPort);
         }
 
-        // these lat long to pixel, and vice versa, formulas, are from FSEarthtiles
         public static Point LatLongToPixel(Point latLong, decimal startLat, decimal startLong, decimal pixelsPerLongitude, decimal pixelsPerLatitude)
         {
-            Point vPixelXYCoord = new Point(pixelsPerLongitude * (latLong.X - startLong), pixelsPerLatitude * (startLat - latLong.Y));
+            Point pixel = new Point(pixelsPerLongitude * (latLong.X - startLong), pixelsPerLatitude * (startLat - latLong.Y));
 
-            return vPixelXYCoord;
+            return pixel;
         }
-
 
         public static Point CoordToPixel(decimal lat, decimal lon, decimal NWLat, decimal NWLon, decimal pixelsPerLongitude,
                                     decimal pixelsPerLatitude)
@@ -1780,59 +1778,54 @@ namespace AutomaticWaterMasking
             return false;
         }
 
-        // this is so ugly... TODO: the real solution is to make a Tile class and override appropriate methods
-        private static MaskingPolys DictContainsTile(Dictionary<double[], MaskingPolys> tilesDict, double[] tileToCheck)
-        {
-            MaskingPolys mp = null;
-            foreach (KeyValuePair<double[], MaskingPolys> kv in tilesDict)
-            {
-                double[] tile = kv.Key;
-                mp = kv.Value;
-                if (tile[0] == tileToCheck[0] && tile[1] == tileToCheck[1])
-                {
-                    return mp;
-                }
-            }
-
-            return null;
-        }
-
         // takes a tile which might be all land or all ocean water, and checks adjacent tiles to tell which is the truth
         private static bool AmbiguousTileHasSeaWater(double[] tile, Dictionary<double[], MaskingPolys> tilePolysMap, AutomaticWaterMasking.Point NW, decimal pixelsPerLon, decimal pixelsPerLat, Bitmap bmp)
         {
             MaskingPolys thisTileMaskingPolys = tilePolysMap[tile];
-            // by now, coastwater polys are 0. if we have some inland polys, then this tile should be land as a base (white)
-            if (thisTileMaskingPolys.inlandPolygons.Count > 1)
-            {
-                return false;
-            }
+            List<double[]> allTiles = tilePolysMap.Keys.ToList();
 
             // has islands? the base of the tile should be water as a base(black)
             if (thisTileMaskingPolys.islands.Count > 0)
             {
                 return true;
             }
-            // no coast water polys, no inland polys (think the middle of the dessert), so look at adjacent tiles
-            short[] check = { -1, 1 };
-            foreach (short x in check)
+
+            // by now, coastwater polys are 0. if we have some inland polys, then this tile should be land as a base (white)
+            if (thisTileMaskingPolys.inlandPolygons.Count > 1)
             {
-                double[] checkTile = new double[] { tile[0], tile[1] + x };
-                MaskingPolys mp = DictContainsTile(tilePolysMap, checkTile);
-                // only use this tile to check for ambiguity if this tile has coast water polygons...
-                if (mp != null && mp.coastWaterPolygons.Count > 0)
-                {
-                    if (TileAdjacentToWater(tile, checkTile, NW, pixelsPerLon, pixelsPerLat, bmp))
-                    {
-                        return true;
-                    }
-                }
+                return false;
             }
-            foreach (short y in check)
+
+            // no coast water polys, no inland polys (think the middle of the dessert), so look at adjacent tiles
+            allTiles.Sort(delegate(double[] tile1, double[] tile2)
             {
-                double[] checkTile = new double[] { tile[0] + y, tile[1] };
-                MaskingPolys mp = DictContainsTile(tilePolysMap, checkTile);
+                if (tile1[0] > tile2[0])
+                {
+                    return 1;
+                }
+                if (tile1[0] < tile2[0])
+                {
+                    return -1;
+                }
+                // lat is equal so look at lon
+                if (tile1[1] > tile2[1])
+                {
+                    return 1;
+                }
+                if (tile1[1] < tile2[1])
+                {
+                    return -1;
+                }
+
+                return 0;
+            });
+
+            for (int i = 0; i < allTiles.Count; i++)
+            {
+                double[] checkTile = allTiles[i];
+                MaskingPolys mp = tilePolysMap[checkTile];
                 // only use this tile to check for ambiguity if this tile has coast water polygons...
-                if (mp != null && mp.coastWaterPolygons.Count > 0)
+                if (mp.coastWaterPolygons.Count > 0 || mp.islands.Count > 0)
                 {
                     if (TileAdjacentToWater(tile, checkTile, NW, pixelsPerLon, pixelsPerLat, bmp))
                     {
