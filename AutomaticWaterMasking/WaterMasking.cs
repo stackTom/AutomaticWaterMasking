@@ -1745,7 +1745,7 @@ namespace AutomaticWaterMasking
             // checkTile is to the north
             if (checkTile[0] > tile[0])
             {
-                AutomaticWaterMasking.Point pixel = WaterMasking.CoordToPixel((decimal)tile[0], (decimal)tile[1], NW.Y, NW.X, pixelsPerLon, pixelsPerLat);
+                AutomaticWaterMasking.Point pixel = WaterMasking.CoordToPixel((decimal)checkTile[0], (decimal)checkTile[1], NW.Y, NW.X, pixelsPerLon, pixelsPerLat);
                 pixel.Y--;
                 ClampPixelToImg(pixel, bmp);
                 return bmp.GetPixel((int)pixel.X, (int)pixel.Y).ToArgb() == Color.Black.ToArgb();
@@ -1753,7 +1753,7 @@ namespace AutomaticWaterMasking
             // checkTile is to the south
             if (checkTile[0] < tile[0])
             {
-                AutomaticWaterMasking.Point pixel = WaterMasking.CoordToPixel((decimal)checkTile[0], (decimal)checkTile[1], NW.Y, NW.X, pixelsPerLon, pixelsPerLat);
+                AutomaticWaterMasking.Point pixel = WaterMasking.CoordToPixel((decimal)tile[0], (decimal)tile[1], NW.Y, NW.X, pixelsPerLon, pixelsPerLat);
                 pixel.Y++;
                 ClampPixelToImg(pixel, bmp);
                 return bmp.GetPixel((int)pixel.X, (int)pixel.Y).ToArgb() == Color.Black.ToArgb();
