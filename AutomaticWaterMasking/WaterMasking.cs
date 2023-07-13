@@ -1352,6 +1352,7 @@ namespace AutomaticWaterMasking
         }
 
         // returns true if a way is circular, and only touches the viewport at singular points (rather than cutting it).
+        // not really needed anymore. TODO: consider deleting
         private static bool CircularWayOnlyTouchesViewPort(Way<Point> way, List<Point> intersections, Way<Point> viewPort)
         {
             if (!way.IsClosedWay())
@@ -1488,6 +1489,8 @@ namespace AutomaticWaterMasking
                 {
                     // if the way is circular and only touches the viewport at singular points (rather than cutting through it)
                     // treat these was as land polygons
+                    // not really needed anymore, as ShouldFollowViewport is robust enough in creating water polygons now even in
+                    // cases with these types of ways... TODO: consider removing this
                     if (!CircularWayOnlyTouchesViewPort(way, intersections, viewPort))
                     {
                         foreach (Point p in intersections)
