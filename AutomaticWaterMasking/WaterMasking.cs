@@ -1661,6 +1661,11 @@ namespace AutomaticWaterMasking
 
         public static void DrawPolygon(Graphics g, SolidBrush b, decimal pixelsPerLon, decimal pixelsPerLat, AutomaticWaterMasking.Point NW, Way<AutomaticWaterMasking.Point> way)
         {
+            if (way.Count == 0)
+            {
+                return;
+            }
+
             List<PointF> l = new List<PointF>();
             for (int i = 0; i < way.Count - 1; i++) // FillPolygon polygons don't need last AutomaticWaterMasking.Point, hence - 1
             {
