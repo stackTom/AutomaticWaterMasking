@@ -216,12 +216,15 @@ namespace AutomaticWaterMasking
         public string relation;
         public string type;
         public string wayID;
+        public List<int> intersectionIDXs;
 
         public Way() : base()
         {
+            intersectionIDXs = new List<int>();
         }
         public Way(Way<T> way) : base(way)
         {
+            intersectionIDXs = way.intersectionIDXs;
         }
 
         public Way<T> MergePointToPoint(Way<T> way)
@@ -443,6 +446,8 @@ namespace AutomaticWaterMasking
                             check.InsertPointAtIndex(intersection, j + 1);
                             j++;
                         }
+                        this.intersectionIDXs.Add(i + 1);
+                        check.intersectionIDXs.Add(i + 1);
                     }
                 }
                 if (intersectionsAddedToThis > 0)
@@ -1249,7 +1254,25 @@ namespace AutomaticWaterMasking
                     }
                     else if (waysContainingPoint.Count == 1)
                     {
+                        // just follow the way until the next intersection
                         curWay = waysContainingPoint[0];
+                        // exclude viewPort because won't affect speeed + we make viewPort smaller each time
+                        // which affects this algorithm.
+                        if (!curWay.Equals(viewPort))
+                        {
+                            int beginIDX = curWay.IndexOf(curPoint);
+                            int endIntersectionIDX = (curWay.intersectionIDXs.IndexOf(beginIDX - 1) + 1) % curWay.intersectionIDXs.Count;
+                            int endIDX = curWay.intersectionIDXs[endIntersectionIDX];
+                            for (int i = beginIDX + 1; i != endIDX; i = (i + 1) % curWay.Count)
+                            {
+                                // avoid repeats on roll over
+                                if (!(i == 0 && polygon[polygon.Count - 1].Equals(curWay[i])))
+                                {
+                                    curPoint = curWay[i];
+                                    polygon.Add(curPoint);
+                                }
+                            }
+                        }
                     }
                     else if (waysContainingPoint.Contains(viewPort))
                     {
