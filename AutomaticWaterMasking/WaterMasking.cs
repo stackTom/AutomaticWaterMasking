@@ -435,6 +435,14 @@ namespace AutomaticWaterMasking
                         if (!intersections.Contains(intersection))
                         {
                             intersections.Add(intersection);
+                            if (!this.intersectionIDXs.Contains(i + 1))
+                            {
+                                this.intersectionIDXs.Add(i + 1);
+                            }
+                            if (!check.intersectionIDXs.Contains(j + 1))
+                            {
+                                check.intersectionIDXs.Add(j + 1);
+                            }
                         }
                         if (insertIntersectionIntoWay && !this.Contains(intersection))
                         {
@@ -446,8 +454,6 @@ namespace AutomaticWaterMasking
                             check.InsertPointAtIndex(intersection, j + 1);
                             j++;
                         }
-                        this.intersectionIDXs.Add(i + 1);
-                        check.intersectionIDXs.Add(j + 1);
                     }
                 }
                 if (intersectionsAddedToThis > 0)
