@@ -447,7 +447,7 @@ namespace AutomaticWaterMasking
                             j++;
                         }
                         this.intersectionIDXs.Add(i + 1);
-                        check.intersectionIDXs.Add(i + 1);
+                        check.intersectionIDXs.Add(j + 1);
                     }
                 }
                 if (intersectionsAddedToThis > 0)
