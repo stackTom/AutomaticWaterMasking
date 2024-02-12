@@ -435,15 +435,30 @@ namespace AutomaticWaterMasking
                         if (!intersections.Contains(intersection))
                         {
                             intersections.Add(intersection);
-                            if (!this.intersectionIDXs.Contains(i + 1))
+                            // if the way contains the intersection already, can be at i (j) or i + 1 (j + 1)
+                            if (!this.Contains(intersection))
                             {
+                                // going to be added down below at i + 1
                                 this.intersectionIDXs.Add(i + 1);
                             }
-                            if (!check.intersectionIDXs.Contains(j + 1))
+                            else
                             {
+                                int idx = intersection.Equals(this[i]) ? i : i + 1;
+                                this.intersectionIDXs.Add(idx);
+                            }
+                            if (!check.Contains(intersection))
+                            {
+                                // going to be added down below at j + 1
                                 check.intersectionIDXs.Add(j + 1);
                             }
+                            else
+                            {
+                                int idx = intersection.Equals(check[j]) ? j : j + 1;
+                                check.intersectionIDXs.Add(idx);
+                            }
                         }
+                        // TODO: this can probably be put into above if, since you never really want to insert
+                        // if it's not in the intersection array
                         if (insertIntersectionIntoWay && !this.Contains(intersection))
                         {
                             this.InsertPointAtIndex(intersection, i + 1);
