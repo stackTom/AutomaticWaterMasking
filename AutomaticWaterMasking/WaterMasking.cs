@@ -1412,6 +1412,27 @@ namespace AutomaticWaterMasking
             return true;
         }
 
+        // returns true if a way is circular, and only touches the viewport at singular points (rather than cutting it).
+        // not really needed anymore. TODO: consider deleting
+        private static bool CircularWayOnlyTouchesViewPort(Way<Point> way, List<Point> intersections, Way<Point> viewPort)
+        {
+            if (!way.IsClosedWay())
+            {
+                throw new Exception("Way must be circular inside CircularWayOnlyTouchesViewPort.");
+            }
+
+            foreach (Point p in intersections)
+            {
+                if (!PointTouchesViewPortInside(way, p, viewPort))
+                {
+                    return false;
+                }
+            }
+
+            // all of the intersections only touch the viewport inside, not fully cut it
+            return true;
+        }
+
         // remove intersections where a way intersects with the viewPort at a single point from the outside
         // TODO: need to clean up some repetitive code in the below function
         private static void CleanOutsideSinglePointIntersections(Dictionary<Point, List<Way<Point>>> pointToWays, Way<Point> viewPort, List<Point> intersections)
@@ -1525,15 +1546,24 @@ namespace AutomaticWaterMasking
                 {
                     continue;
                 }
-                // closed ways should be treated separately. just put them in the islands array
-                // sometimes you get islands tagged as coastline inside another coastline, despite the
-                // fact that the island should be inland water. this causes problems with our logic
-                // (and frankly doesn't make much sense). so just ignore all closed ways when forming
-                // the coast polygons intersecting with the viewport
-                // Example happens at -1, -50
                 if (way.IsClosedWay())
                 {
-                    waysShouldBeLandPolygons.Add(way);
+                    // if the way is circular and only touches the viewport at singular points (rather than cutting through it)
+                    // treat these was as land polygons
+                    // not really needed anymore, as ShouldFollowViewport is robust enough in creating water polygons now even in
+                    // cases with these types of ways... TODO: consider removing this
+                    if (!CircularWayOnlyTouchesViewPort(way, intersections, viewPort))
+                    {
+                        foreach (Point p in intersections)
+                        {
+                            allIntersections.Add(p);
+                        }
+                        PopulatePointToWaysDict(pointToWays, way);
+                    }
+                    else
+                    {
+                        waysShouldBeLandPolygons.Add(way);
+                    }
                 }
                 else
                 {
@@ -1549,7 +1579,10 @@ namespace AutomaticWaterMasking
             foreach (Way<Point> way in waysShouldBeLandPolygons)
             {
                 coastWays.Remove(way);
-                islands.Add(way);
+                if (way.IsClosedWay())
+                {
+                    islands.Add(way);
+                }
             }
 
             CleanOutsideSinglePointIntersections(pointToWays, viewPort, allIntersections);
