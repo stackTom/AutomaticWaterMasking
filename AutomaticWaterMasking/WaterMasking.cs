@@ -552,7 +552,22 @@ namespace AutomaticWaterMasking
 
     public class OSMXMLParser
     {
-        private static Dictionary<string, Point> GetNodeIDsToCoords(XmlDocument d)
+        public Dictionary<string, List<string>> wayIDsToWayNodes;
+        public Dictionary<string, Point> nodeIDsToCoords;
+        public Dictionary<string, Way<Point>> wayIDsToWays;
+        // POSSIBLE BUG: can a way every be both inner and outer in a relationship?
+        public Dictionary<string, string> wayIDsToRelation;
+        public Dictionary<string, string> wayIDsToType;
+        private XmlDocument d;
+
+        public OSMXMLParser(string xmlString)
+        {
+            this.d = new XmlDocument();
+            this.d.LoadXml(xmlString);
+            this.Parse();
+        }
+
+        private Dictionary<string, Point> GetNodeIDsToCoords()
         {
             Dictionary<string, Point> nodeIDsToCoords = new Dictionary<string, Point>();
             XmlNodeList nodeTags = d.GetElementsByTagName("node");
@@ -568,7 +583,7 @@ namespace AutomaticWaterMasking
             return nodeIDsToCoords;
         }
 
-        private static Dictionary<string, List<string>> GetWayIDsToWayNodes(XmlDocument d)
+        private Dictionary<string, List<string>> GetWayIDsToWayNodes()
         {
             Dictionary<string, List<string>> wayIDsToWayNodes = new Dictionary<string, List<string>>();
             XmlNodeList wayTags = d.GetElementsByTagName("way");
@@ -589,7 +604,7 @@ namespace AutomaticWaterMasking
             return wayIDsToWayNodes;
         }
 
-        private static Dictionary<string, Way<Point>> GetWayIDsToWays(XmlDocument d, Dictionary<string, List<string>> wayIDsToWayNodes, Dictionary<string, Point> nodeIDsToCoords)
+        private Dictionary<string, Way<Point>> GetWayIDsToWays(Dictionary<string, List<string>> wayIDsToWayNodes, Dictionary<string, Point> nodeIDsToCoords)
         {
             Dictionary<string, Way<Point>> wayIDsToways = new Dictionary<string, Way<Point>>();
 
@@ -618,7 +633,17 @@ namespace AutomaticWaterMasking
             return wayIDsToways;
         }
 
-        private static List<Way<Point>> GetWaysInThisMultipolygonAndUpdateRelations(Dictionary<string, Way<Point>> wayIDsToWays, XmlElement rel, Dictionary<string, string> wayIDsToRelation, Dictionary<string, string> wayIDsToType)
+        public void Parse()
+        {
+            this.wayIDsToWayNodes = GetWayIDsToWayNodes();
+            this.nodeIDsToCoords = GetNodeIDsToCoords();
+            this.wayIDsToWays = GetWayIDsToWays(wayIDsToWayNodes, nodeIDsToCoords);
+            // POSSIBLE BUG: can a way every be both inner and outer in a relationship?
+            this.wayIDsToRelation = GetWayIDsToRelation(wayIDsToWayNodes, nodeIDsToCoords);
+            this.wayIDsToType = new Dictionary<string, string>();
+        }
+
+        private List<Way<Point>> GetWaysInThisMultipolygonAndUpdateRelations(Dictionary<string, Way<Point>> wayIDsToWays, XmlElement rel, Dictionary<string, string> wayIDsToRelation, Dictionary<string, string> wayIDsToType)
         {
             List<Way<Point>> waysInThisMultipolygon = new List<Way<Point>>();
             string type = null;
@@ -700,11 +725,11 @@ namespace AutomaticWaterMasking
             } while (mergeFound);
         }
 
-        private static Dictionary<string, string> GetWayIDsToRelation(XmlDocument d, Dictionary<string, List<string>> wayIDsToWayNodes, Dictionary<string, Point> nodeIDsToCoords)
+        private Dictionary<string, string> GetWayIDsToRelation(Dictionary<string, List<string>> wayIDsToWayNodes, Dictionary<string, Point> nodeIDsToCoords)
         {
             Dictionary<string, string> wayIDsToRelations = new Dictionary<string, string>();
 
-            XmlNodeList wayTags = d.GetElementsByTagName("way");
+            XmlNodeList wayTags = this.d.GetElementsByTagName("way");
             foreach (XmlElement way in wayTags)
             {
                 string relation = way.GetAttribute("relation");
@@ -719,32 +744,24 @@ namespace AutomaticWaterMasking
             return wayIDsToRelations;
         }
 
-        public static Dictionary<string, Way<Point>> GetWays(string OSMKML, bool mergeMultipolygons)
+        public Dictionary<string, Way<Point>> GetWays(bool mergeMultipolygons)
         {
-            XmlDocument d = new XmlDocument();
-            d.LoadXml(OSMKML);
+            List<Way<Point>> toRemove = new List<Way<Point>>();
+            List<Way<Point>> toAdd = new List<Way<Point>>();
 
-            Dictionary<string, List<string>> wayIDsToWayNodes = GetWayIDsToWayNodes(d);
-            Dictionary<string, Point> nodeIDsToCoords = GetNodeIDsToCoords(d);
-            Dictionary<string, Way<Point>> wayIDsToWays = GetWayIDsToWays(d, wayIDsToWayNodes, nodeIDsToCoords);
-            // POSSIBLE BUG: can a way every be both inner and outer in a relationship?
-            Dictionary<string, string> wayIDsToRelation = GetWayIDsToRelation(d, wayIDsToWayNodes, nodeIDsToCoords);
-            Dictionary<string, string> wayIDsToType = new Dictionary<string, string>();
-            foreach (KeyValuePair<string, Way<Point>> kv in wayIDsToWays)
+            foreach (KeyValuePair<string, Way<Point>> kv in this.wayIDsToWays)
             {
                 string wayID = kv.Key;
                 Way<Point> way = kv.Value;
                 way.relation = null;
                 way.wayID = wayID;
-                if (wayIDsToRelation.ContainsKey(wayID))
+                if (this.wayIDsToRelation.ContainsKey(wayID))
                 {
-                    way.relation = wayIDsToRelation[wayID];
+                    way.relation = this.wayIDsToRelation[wayID];
                 }
             }
 
-            XmlNodeList relationTags = d.GetElementsByTagName("relation");
-            List<Way<Point>> toRemove = new List<Way<Point>>();
-            List<Way<Point>> toAdd = new List<Way<Point>>();
+            XmlNodeList relationTags = this.d.GetElementsByTagName("relation");
             foreach (XmlElement rel in relationTags)
             {
                 // unite multipolygon pieces into one big linestring
@@ -752,18 +769,18 @@ namespace AutomaticWaterMasking
                 // it is hard to determine direction the water is in relative to the way because I believe OSM only requires direction
                 // for coastal ways. but if we make them a full polygon, then it is easy to determine that the water is inside the polygon
                 // here we compare every way to every other way.
-                List<Way<Point>> waysInThisMultipolygon = GetWaysInThisMultipolygonAndUpdateRelations(wayIDsToWays, rel, wayIDsToRelation, wayIDsToType);
+                List<Way<Point>> waysInThisMultipolygon = GetWaysInThisMultipolygonAndUpdateRelations(this.wayIDsToWays, rel, this.wayIDsToRelation, this.wayIDsToType);
                 // update relations
-                foreach (KeyValuePair<string, Way<Point>> kv in wayIDsToWays)
+                foreach (KeyValuePair<string, Way<Point>> kv in this.wayIDsToWays)
                 {
                     string wayID = kv.Key;
                     Way<Point> way = kv.Value;
                     way.relation = null;
                     way.wayID = wayID;
-                    if (wayIDsToRelation.ContainsKey(wayID))
+                    if (this.wayIDsToRelation.ContainsKey(wayID))
                     {
-                        way.relation = wayIDsToRelation[wayID];
-                        way.type = wayIDsToType[wayID];
+                        way.relation = this.wayIDsToRelation[wayID];
+                        way.type = this.wayIDsToType[wayID];
                     }
                 }
 
@@ -794,14 +811,14 @@ namespace AutomaticWaterMasking
 
             foreach (Way<Point> way in toRemove)
             {
-                wayIDsToWays.Remove(way.wayID);
+                this.wayIDsToWays.Remove(way.wayID);
             }
             foreach (Way<Point> way in toAdd)
             {
-                wayIDsToWays.Add(way.wayID, way);
+               this.wayIDsToWays.Add(way.wayID, way);
             }
 
-            return wayIDsToWays;
+            return this.wayIDsToWays;
         }
 
         public static string WaysToOSMXML(List<Way<Point>> ways)
@@ -1597,8 +1614,10 @@ namespace AutomaticWaterMasking
         // TODO: the array of List<Way<Point>> is ugly. Find another way to represent the different layers representing alternating land and water.
         public static void CreatePolygons(List<Way<Point>> coastWaterPolygons, List<Way<Point>> islands, List<Way<Point>> inlandPolygons, string coastXML, string waterXML, Way<Point> viewPort)
         {
-            Dictionary<string, Way<Point>> coastWays = OSMXMLParser.GetWays(coastXML, true);
-            Dictionary<string, Way<Point>> waterWays = OSMXMLParser.GetWays(waterXML, true);
+            OSMXMLParser waterParser = new OSMXMLParser(waterXML);
+            Dictionary<string, Way<Point>> waterWays = waterParser.GetWays(true);
+            OSMXMLParser coastParser = new OSMXMLParser(coastXML);
+            Dictionary<string, Way<Point>> coastWays = coastParser.GetWays(true);
             // remove any that have length 0 (can get when edit with JOSM)
             foreach (string wayID in coastWays.Keys.ToArray())
             {
