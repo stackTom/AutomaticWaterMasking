@@ -893,6 +893,10 @@ namespace AutomaticWaterMasking
             "http://overpass.osm.rambler.ru/cgi/interpreter",
         };
 
+        // for offsetting CoordToPixel calculation
+        public static decimal xOffset = 0.0m;
+        public static decimal yOffset = 0.0m;
+
         // sets missing values from OSM data to make a valid OSM file that JOSM can load
         private static string FixOSM(string OSM)
         {
@@ -1725,8 +1729,8 @@ namespace AutomaticWaterMasking
         {
             Point tempCoord = new Point(lon, lat);
             Point pixel = LatLongToPixel(tempCoord, NWLat, NWLon, pixelsPerLongitude, pixelsPerLatitude);
-            pixel.X -= 0.5m;
-            pixel.Y -= 0.5m;
+            pixel.X += xOffset;
+            pixel.Y += yOffset;
 
             return pixel;
         }
