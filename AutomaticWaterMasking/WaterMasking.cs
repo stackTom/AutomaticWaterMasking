@@ -896,6 +896,7 @@ namespace AutomaticWaterMasking
         // for offsetting CoordToPixel calculation
         public static decimal xOffset = 0.0m;
         public static decimal yOffset = 0.0m;
+        private static int totalPoints = 0;
 
         // sets missing values from OSM data to make a valid OSM file that JOSM can load
         private static string FixOSM(string OSM)
@@ -995,20 +996,11 @@ namespace AutomaticWaterMasking
             return coastOSM;
         }
 
-        private static void PopulatePointToWaysDict(Dictionary<Point, List<Way<Point>>> dict, Way<Point> way)
+        private static void PopulatePointToIntersectingWayDict(Dictionary<Point, Way<Point>> dict, Way<Point> way, List<Point> intersections)
         {
-            foreach (Point p in way)
+            foreach (Point p in intersections)
             {
-                if (dict.ContainsKey(p))
-                {
-                    dict[p].Add(way);
-                }
-                else
-                {
-                    List<Way<Point>> l = new List<Way<Point>>();
-                    l.Add(way);
-                    dict.Add(p, l);
-                }
+                dict.Add(p, way);
             }
         }
 
@@ -1188,20 +1180,6 @@ namespace AutomaticWaterMasking
             return false;
         }
 
-        private static Way<Point> GetNonViewPortWaySharingThisPoint(Way<Point> viewPort, List<Way<Point>> waysContainingPoint)
-        {
-            // choose the other way that is not the viewPort
-            foreach (Way<Point> w in waysContainingPoint)
-            {
-                if (!w.Equals(viewPort))
-                {
-                    return w;
-                }
-            }
-
-            return null;
-        }
-
         private static bool ShouldFollowViewport(Way<Point> viewPort, Way<Point> origViewPort, Way<Point> curWay, Way<Point> otherWay, Way<Point> polygon, List<Point> intersections, Point curPoint)
         {
             bool followViewPort = false;
@@ -1265,15 +1243,13 @@ namespace AutomaticWaterMasking
             return followViewPort;
         }
 
-        private static bool TryToBuildPolygons(List<Way<Point>> polygons, Dictionary<Point, List<Way<Point>>> pointToWays, Way<Point> startingWay, Way<Point> viewPort, Way<Point> origViewPort, int startingIdx, bool followViewPort, List<Point> intersections, bool followUntilNextIntersection=true)
+        private static bool TryToBuildPolygons(List<Way<Point>> polygons, Dictionary<Point, Way<Point>> pointsToIntersectingWays, Way<Point> startingWay, Way<Point> viewPort, Way<Point> origViewPort, int startingIdx, bool followViewPort, List<Point> intersections, bool followUntilNextIntersection=true)
         {
             Way<Point> polygon = null;
             int idx = startingIdx;
             polygon = new Way<Point>();
             Way<Point> curWay = startingWay;
             Point curPoint = null;
-            // if a polygon has more points comprising it than all the points available, we have a problem
-            int CLOSE_WAY_RETRIES = pointToWays.Count;
             // contains points that touch but not transect viewport and we should follow the viewport after
             HashSet<Point> touchingButNotTransectingFollowViewPort = new HashSet<Point>();
             // contains points that touch but not transect viewport and we should not follow the viewport after
@@ -1282,43 +1258,17 @@ namespace AutomaticWaterMasking
             {
                 while (!polygon.IsClosedWay())
                 {
-                    if (polygon.Count > CLOSE_WAY_RETRIES)
+                    // if a polygon has more points comprising it than all the points available, we have a problem
+                    if (polygon.Count > WaterMasking.totalPoints)
                     {
                         throw new Exception("Endless loop trying to close polygon; there is probably something wrong with the data");
                     }
                     curPoint = curWay[idx];
 
                     polygon.Add(curPoint);
-                    List<Way<Point>> waysContainingPoint = pointToWays[curPoint];
-                    if (waysContainingPoint.Count == 0)
+                    if (intersections.Contains(curPoint))
                     {
-                        throw new Exception("Something went wrong trying to create coast polygons");
-                    }
-                    else if (waysContainingPoint.Count == 1)
-                    {
-                        // just follow the way until the next intersection
-                        curWay = waysContainingPoint[0];
-                        // exclude viewPort because won't affect speeed + we make viewPort smaller each time
-                        // which affects this algorithm.
-                        if (followUntilNextIntersection && !curWay.Equals(viewPort))
-                        {
-                            int beginIDX = curWay.IndexOf(curPoint);
-                            int endIntersectionIDX = (curWay.intersectionIDXs.IndexOf(beginIDX - 1) + 1) % curWay.intersectionIDXs.Count;
-                            int endIDX = curWay.intersectionIDXs[endIntersectionIDX];
-                            for (int i = beginIDX + 1; i != endIDX; i = (i + 1) % curWay.Count)
-                            {
-                                // avoid repeats on roll over
-                                if (!(i == 0 && polygon[polygon.Count - 1].Equals(curWay[i])))
-                                {
-                                    curPoint = curWay[i];
-                                    polygon.Add(curPoint);
-                                }
-                            }
-                        }
-                    }
-                    else if (waysContainingPoint.Contains(viewPort))
-                    {
-                        Way<Point> otherWay = GetNonViewPortWaySharingThisPoint(viewPort, waysContainingPoint);
+                        Way<Point> otherWay = pointsToIntersectingWays[curPoint];
 
                         if (touchingButNotTransectingFollowViewPort.Contains(curPoint))
                         {
@@ -1371,9 +1321,26 @@ namespace AutomaticWaterMasking
                     }
                     else
                     {
-                        // choose the only way that we can
-                        curWay = waysContainingPoint[0];
+                        // just follow the way until the next intersection
+                        // exclude viewPort because won't affect speeed + we make viewPort smaller each time
+                        // which affects this algorithm.
+                        if (followUntilNextIntersection && !curWay.Equals(viewPort))
+                        {
+                            int beginIDX = curWay.IndexOf(curPoint);
+                            int endIntersectionIDX = (curWay.intersectionIDXs.IndexOf(beginIDX - 1) + 1) % curWay.intersectionIDXs.Count;
+                            int endIDX = curWay.intersectionIDXs[endIntersectionIDX];
+                            for (int i = beginIDX + 1; i != endIDX; i = (i + 1) % curWay.Count)
+                            {
+                                // avoid repeats on roll over
+                                if (!(i == 0 && polygon[polygon.Count - 1].Equals(curWay[i])))
+                                {
+                                    curPoint = curWay[i];
+                                    polygon.Add(curPoint);
+                                }
+                            }
+                        }
                     }
+
                     idx = curWay.IndexOf(curPoint);
 
                     idx = (idx + 1) % curWay.Count;
@@ -1405,8 +1372,7 @@ namespace AutomaticWaterMasking
                             break;
                         }
                     }
-                    List<Way<Point>> waysContainingPoint = pointToWays[p];
-                    curWay = GetNonViewPortWaySharingThisPoint(viewPort, waysContainingPoint);
+                    curWay = pointsToIntersectingWays[p];
                     idx = curWay.IndexOf(p);
                     polygon = new Way<Point>();
                     followViewPort = true;
@@ -1439,15 +1405,14 @@ namespace AutomaticWaterMasking
 
         // remove intersections where a way intersects with the viewPort at a single point from the outside
         // TODO: need to clean up some repetitive code in the below function
-        private static void CleanOutsideSinglePointIntersections(Dictionary<Point, List<Way<Point>>> pointToWays, Way<Point> viewPort, List<Point> intersections)
+        private static void CleanOutsideSinglePointIntersections(Dictionary<Point, Way<Point>> pointsToIntersectingWays, Way<Point> viewPort, List<Point> intersections)
         {
             for (int i = 0; i < viewPort.Count; i++)
             {
                 Point curPoint = viewPort[i];
                 if (intersections.Contains(curPoint))
                 {
-                    List<Way<Point>> waysContainingPoint = pointToWays[curPoint];
-                    Way<Point> otherWay = GetNonViewPortWaySharingThisPoint(viewPort, waysContainingPoint);
+                    Way<Point> otherWay = pointsToIntersectingWays[curPoint];
                     Point next = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
                     Point prev = otherWay.GetPointAtOffsetFromPoint(curPoint, -1);
 
@@ -1540,9 +1505,10 @@ namespace AutomaticWaterMasking
         {
             List<Way<Point>> polygons = new List<Way<Point>>();
             List<Point> allIntersections = new List<Point>();
-            Dictionary<Point, List<Way<Point>>> pointToWays = new Dictionary<Point, List<Way<Point>>>();
+            Dictionary<Point, Way<Point>> pointsToIntersectingWays = new Dictionary<Point, Way<Point>>();
             List<Way<Point>> waysShouldBeLandPolygons = new List<Way<Point>>();
 
+            WaterMasking.totalPoints = 0;
             foreach (Way<Point> way in coastWays)
             {
                 List<Point> intersections = way.IntersectsWith(viewPort, true, true);
@@ -1550,6 +1516,7 @@ namespace AutomaticWaterMasking
                 {
                     continue;
                 }
+                totalPoints += way.Count;
                 if (way.IsClosedWay())
                 {
                     // if the way is circular and only touches the viewport at singular points (rather than cutting through it)
@@ -1562,7 +1529,7 @@ namespace AutomaticWaterMasking
                         {
                             allIntersections.Add(p);
                         }
-                        PopulatePointToWaysDict(pointToWays, way);
+                        PopulatePointToIntersectingWayDict(pointsToIntersectingWays, way, intersections);
                     }
                     else
                     {
@@ -1575,7 +1542,7 @@ namespace AutomaticWaterMasking
                     {
                         allIntersections.Add(p);
                     }
-                    PopulatePointToWaysDict(pointToWays, way);
+                    PopulatePointToIntersectingWayDict(pointsToIntersectingWays, way, intersections);
                 }
             }
             // now, remove all those ways whose intersections only touch the viewport at a single point, but do not fully traverse it
@@ -1589,10 +1556,7 @@ namespace AutomaticWaterMasking
                 }
             }
 
-            CleanOutsideSinglePointIntersections(pointToWays, viewPort, allIntersections);
-            Way<Point> viewPortWithoutLastPoint = new Way<Point>(viewPort);
-            viewPortWithoutLastPoint.RemoveAt(viewPort.Count - 1);
-            PopulatePointToWaysDict(pointToWays, viewPortWithoutLastPoint);
+            CleanOutsideSinglePointIntersections(pointsToIntersectingWays, viewPort, allIntersections);
             List<Point> allIntersectionsOrig = new List<Point>(allIntersections);
             bool keepTrying = true;
             int startingIdx = 0;
@@ -1606,8 +1570,7 @@ namespace AutomaticWaterMasking
                 Point p = viewPort[i];
                 if (allIntersections.Contains(p))
                 {
-                    List<Way<Point>> waysContainingPoint = pointToWays[p];
-                    startingWay = GetNonViewPortWaySharingThisPoint(viewPort, waysContainingPoint);
+                    startingWay = pointsToIntersectingWays[p];
                     startingIdx = startingWay.IndexOf(p);
                     break;
                 }
@@ -1620,14 +1583,14 @@ namespace AutomaticWaterMasking
                 bool newPolys = false;
                 try
                 {
-                    newPolys = TryToBuildPolygons(polygons, pointToWays, startingWay, viewPort, origViewPort, startingIdx, followViewPort, allIntersections, true);
+                    newPolys = TryToBuildPolygons(polygons, pointsToIntersectingWays, startingWay, viewPort, origViewPort, startingIdx, followViewPort, allIntersections, true);
                 }
                 catch
                 {
                     try
                     {
                         polygons = new List<Way<Point>>();
-                        newPolys = TryToBuildPolygons(polygons, pointToWays, startingWay, new Way<Point>(origViewPort), origViewPort, startingIdx, followViewPort, allIntersectionsOrig, false);
+                        newPolys = TryToBuildPolygons(polygons, pointsToIntersectingWays, startingWay, new Way<Point>(origViewPort), origViewPort, startingIdx, followViewPort, allIntersectionsOrig, false);
                     }
                     catch (Exception e2)
                     {
