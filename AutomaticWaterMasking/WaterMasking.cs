@@ -1516,7 +1516,7 @@ namespace AutomaticWaterMasking
                 {
                     continue;
                 }
-                totalPoints += way.Count;
+                WaterMasking.totalPoints += way.Count;
                 if (way.IsClosedWay())
                 {
                     // if the way is circular and only touches the viewport at singular points (rather than cutting through it)
