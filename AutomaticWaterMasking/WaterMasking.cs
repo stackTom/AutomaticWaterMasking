@@ -815,7 +815,7 @@ namespace AutomaticWaterMasking
             }
             foreach (Way<Point> way in toAdd)
             {
-               this.wayIDsToWays.Add(way.wayID, way);
+                this.wayIDsToWays.Add(way.wayID, way);
             }
 
             return this.wayIDsToWays;
@@ -1007,7 +1007,7 @@ namespace AutomaticWaterMasking
         private static Point[] MinMaxOfViewPort(Way<Point> viewPort)
         {
             Way<Point> temp = new Way<Point>(viewPort);
-            temp.Sort(delegate(Point p1, Point p2)
+            temp.Sort(delegate (Point p1, Point p2)
             {
                 if (p1.X - p2.X > 0)
                 {
@@ -1023,7 +1023,7 @@ namespace AutomaticWaterMasking
             decimal minX = temp[0].X;
             decimal maxX = temp[temp.Count - 2].X;
 
-            temp.Sort(delegate(Point p1, Point p2)
+            temp.Sort(delegate (Point p1, Point p2)
             {
                 if (p1.Y - p2.Y > 0)
                 {
@@ -1162,7 +1162,7 @@ namespace AutomaticWaterMasking
                 Decimal dx = Math.Abs(cur.X - p.X);
                 Decimal dy = Math.Abs(cur.Y - p.Y);
 
-                if (!PointInViewport(p, viewPort) &&  (SafeCompare.SafeEquals(dx, 0m) || SafeCompare.SafeEquals(dy, 0m)))
+                if (!PointInViewport(p, viewPort) && (SafeCompare.SafeEquals(dx, 0m) || SafeCompare.SafeEquals(dy, 0m)))
                 {
                     Edge viewPortEdge = new Edge(cur, next);
 
@@ -1845,7 +1845,7 @@ namespace AutomaticWaterMasking
             }
 
             // no coast water polys, no inland polys (think the middle of the dessert), so look at adjacent tiles
-            allTiles.Sort(delegate(double[] tile1, double[] tile2)
+            allTiles.Sort(delegate (double[] tile1, double[] tile2)
             {
                 if (tile1[0] > tile2[0])
                 {
