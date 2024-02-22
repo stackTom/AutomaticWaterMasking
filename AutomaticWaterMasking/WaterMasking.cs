@@ -1243,12 +1243,13 @@ namespace AutomaticWaterMasking
             return followViewPort;
         }
 
-        private static bool TryToBuildPolygons(List<Way<Point>> polygons, Dictionary<Point, Way<Point>> pointsToIntersectingWays, Way<Point> startingWay, Way<Point> viewPort, Way<Point> origViewPort, int startingIdx, bool followViewPort, List<Point> intersections, bool followUntilNextIntersection=true)
+        private static bool TryToBuildPolygons(List<Way<Point>> polygons, Dictionary<Point, Way<Point>> pointsToIntersectingWays, Way<Point> startingWay, Way<Point> viewPort, Way<Point> origViewPort, int startingIdx, bool followViewPort, List<Point> intersections, bool followUntilNextIntersection = true)
         {
             Way<Point> polygon = null;
             int idx = startingIdx;
             polygon = new Way<Point>();
             Way<Point> curWay = startingWay;
+            HashSet<Point> origIntersections = new HashSet<Point>(intersections);
             Point curPoint = null;
             // contains points that touch but not transect viewport and we should follow the viewport after
             HashSet<Point> touchingButNotTransectingFollowViewPort = new HashSet<Point>();
@@ -1266,7 +1267,7 @@ namespace AutomaticWaterMasking
                     curPoint = curWay[idx];
 
                     polygon.Add(curPoint);
-                    if (intersections.Contains(curPoint))
+                    if (origIntersections.Contains(curPoint))
                     {
                         Way<Point> otherWay = pointsToIntersectingWays[curPoint];
 
