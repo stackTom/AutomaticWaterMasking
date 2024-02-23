@@ -1546,6 +1546,8 @@ namespace AutomaticWaterMasking
                     PopulatePointToIntersectingWayDict(pointsToIntersectingWays, way, intersections);
                 }
             }
+            // add viewPort count to total possible points
+            WaterMasking.totalPoints += viewPort.Count;
             // now, remove all those ways whose intersections only touch the viewport at a single point, but do not fully traverse it
             // as these should be treated as land polygons. Otherwise, breaks our sea polygon creation logic and get endless loops
             foreach (Way<Point> way in waysShouldBeLandPolygons)
