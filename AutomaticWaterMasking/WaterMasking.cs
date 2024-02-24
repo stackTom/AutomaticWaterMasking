@@ -361,6 +361,18 @@ namespace AutomaticWaterMasking
             }
         }
 
+        public void RemoveUpdatingIntersectionIDXs(T toRemove)
+        {
+            int idxInToRemove = this.IndexOf(toRemove);
+            int idxInIntersectionIDXs = this.intersectionIDXs.IndexOf(idxInToRemove);
+            this.intersectionIDXs.RemoveAt(idxInIntersectionIDXs);
+            for (int i = idxInIntersectionIDXs; i < this.intersectionIDXs.Count; i++)
+            {
+                this.intersectionIDXs[i]--;
+            }
+            this.Remove(toRemove);
+        }
+
         public Point GetPointAtOffsetFromPoint(Point p, int offset)
         {
             if (offset == 0)
@@ -1427,7 +1439,7 @@ namespace AutomaticWaterMasking
                                 viewPort.Remove(curPoint);
                                 i--;
                             }
-                            otherWay.Remove(curPoint);
+                            otherWay.RemoveUpdatingIntersectionIDXs(curPoint);
                         }
                         else if (curPoint.Equals(otherWay[otherWay.Count - 1]) && PointOutsideViewPort(prev, otherWay, viewPort))
                         {
@@ -1437,7 +1449,7 @@ namespace AutomaticWaterMasking
                                 viewPort.Remove(curPoint);
                                 i--;
                             }
-                            otherWay.Remove(curPoint);
+                            otherWay.RemoveUpdatingIntersectionIDXs(curPoint);
                         }
                     }
                     if (PointTouchesViewPortOutside(otherWay, curPoint, viewPort))
@@ -1448,7 +1460,7 @@ namespace AutomaticWaterMasking
                             viewPort.Remove(curPoint);
                             i--;
                         }
-                        otherWay.Remove(curPoint);
+                        otherWay.RemoveUpdatingIntersectionIDXs(curPoint);
                     }
                     else if (PointOutsideViewPort(prev, otherWay, viewPort))
                     {
@@ -1461,7 +1473,7 @@ namespace AutomaticWaterMasking
                                 viewPort.Remove(curPoint);
                                 i--;
                             }
-                            otherWay.Remove(curPoint);
+                            otherWay.RemoveUpdatingIntersectionIDXs(curPoint);
                             curPoint = nextCurPoint;
                             next = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
                         }
@@ -1477,7 +1489,7 @@ namespace AutomaticWaterMasking
                                 viewPort.Remove(curPoint);
                                 i--;
                             }
-                            otherWay.Remove(curPoint);
+                            otherWay.RemoveUpdatingIntersectionIDXs(curPoint);
                             curPoint = nextCurPoint;
                             prev = otherWay.GetPointAtOffsetFromPoint(curPoint, -1);
                         }
@@ -1493,7 +1505,7 @@ namespace AutomaticWaterMasking
                                 viewPort.Remove(next);
                                 i--;
                             }
-                            otherWay.Remove(next);
+                            otherWay.RemoveUpdatingIntersectionIDXs(next);
                             next = nnext;
                             nnext = otherWay.GetPointAtOffsetFromPoint(next, 1);
                         }
