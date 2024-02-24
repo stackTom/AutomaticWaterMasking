@@ -365,10 +365,13 @@ namespace AutomaticWaterMasking
         {
             int idxInToRemove = this.IndexOf(toRemove);
             int idxInIntersectionIDXs = this.intersectionIDXs.IndexOf(idxInToRemove);
-            this.intersectionIDXs.RemoveAt(idxInIntersectionIDXs);
-            for (int i = idxInIntersectionIDXs; i < this.intersectionIDXs.Count; i++)
+            if (idxInIntersectionIDXs != -1)
             {
-                this.intersectionIDXs[i]--;
+                this.intersectionIDXs.RemoveAt(idxInIntersectionIDXs);
+                for (int i = idxInIntersectionIDXs; i < this.intersectionIDXs.Count; i++)
+                {
+                    this.intersectionIDXs[i]--;
+                }
             }
             this.Remove(toRemove);
         }
@@ -1572,7 +1575,6 @@ namespace AutomaticWaterMasking
             }
 
             CleanOutsideSinglePointIntersections(pointsToIntersectingWays, viewPort, allIntersections);
-            List<Point> allIntersectionsOrig = new List<Point>(allIntersections);
             bool keepTrying = true;
             int startingIdx = 0;
             Way<Point> startingWay = null;
