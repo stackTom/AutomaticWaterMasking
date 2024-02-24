@@ -1345,6 +1345,10 @@ namespace AutomaticWaterMasking
                             int beginIDX = curWay.IndexOf(curPoint);
                             int endIntersectionIDX = (curWay.intersectionIDXs.IndexOf(beginIDX - 1) + 1) % curWay.intersectionIDXs.Count;
                             int endIDX = curWay.intersectionIDXs[endIntersectionIDX];
+                            if (endIDX == 0 && curWay.IsClosedWay())
+                            {
+                                endIDX = curWay.Count - 1;
+                            }
                             for (int i = beginIDX + 1; i != endIDX; i = (i + 1) % curWay.Count)
                             {
                                 // avoid repeats on roll over
