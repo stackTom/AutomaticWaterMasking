@@ -1255,7 +1255,7 @@ namespace AutomaticWaterMasking
             return followViewPort;
         }
 
-        private static bool TryToBuildPolygons(List<Way<Point>> polygons, Dictionary<Point, Way<Point>> pointsToIntersectingWays, Way<Point> startingWay, Way<Point> viewPort, Way<Point> origViewPort, int startingIdx, bool followViewPort, List<Point> intersections, bool followUntilNextIntersection = true)
+        private static bool TryToBuildPolygons(List<Way<Point>> polygons, Dictionary<Point, Way<Point>> pointsToIntersectingWays, Way<Point> startingWay, Way<Point> viewPort, Way<Point> origViewPort, int startingIdx, bool followViewPort, List<Point> intersections)
         {
             Way<Point> polygon = null;
             int idx = startingIdx;
@@ -1337,7 +1337,7 @@ namespace AutomaticWaterMasking
                         // just follow the way until the next intersection
                         // exclude viewPort because won't affect speeed + we make viewPort smaller each time
                         // which affects this algorithm.
-                        if (followUntilNextIntersection && !curWay.Equals(viewPort))
+                        if (!curWay.Equals(viewPort))
                         {
                             int beginIDX = curWay.IndexOf(curPoint);
                             int endIntersectionIDX = (curWay.intersectionIDXs.IndexOf(beginIDX - 1) + 1) % curWay.intersectionIDXs.Count;
@@ -1598,19 +1598,11 @@ namespace AutomaticWaterMasking
                 bool newPolys = false;
                 try
                 {
-                    newPolys = TryToBuildPolygons(polygons, pointsToIntersectingWays, startingWay, viewPort, origViewPort, startingIdx, followViewPort, allIntersections, true);
+                    newPolys = TryToBuildPolygons(polygons, pointsToIntersectingWays, startingWay, viewPort, origViewPort, startingIdx, followViewPort, allIntersections);
                 }
-                catch
+                catch (Exception e)
                 {
-                    try
-                    {
-                        polygons = new List<Way<Point>>();
-                        newPolys = TryToBuildPolygons(polygons, pointsToIntersectingWays, startingWay, new Way<Point>(origViewPort), origViewPort, startingIdx, followViewPort, allIntersectionsOrig, false);
-                    }
-                    catch (Exception e2)
-                    {
-                        throw new Exception(e2.ToString());
-                    }
+                    throw e;
                 }
                 if (!newPolys)
                 {
