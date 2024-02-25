@@ -373,6 +373,16 @@ namespace AutomaticWaterMasking
                     this.intersectionIDXs[i]--;
                 }
             }
+            else
+            {
+                for (int i = 0; i < this.intersectionIDXs.Count; i++)
+                {
+                    if (this.intersectionIDXs[i] > idxInToRemove)
+                    {
+                        this.intersectionIDXs[i]--;
+                    }
+                }
+            }
             this.Remove(toRemove);
         }
 
