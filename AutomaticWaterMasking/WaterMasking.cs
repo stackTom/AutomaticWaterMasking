@@ -1522,7 +1522,7 @@ namespace AutomaticWaterMasking
                         while (PointOnViewPortSegment(viewPort, otherWay, next) && PointOnViewPortSegment(viewPort, otherWay, nnext))
                         {
                             intersections.Remove(next);
-                            if (ShouldRemovePointFromViewPort(curPoint, viewPort, unmodifiedViewPort))
+                            if (ShouldRemovePointFromViewPort(next, viewPort, unmodifiedViewPort))
                             {
                                 viewPort.Remove(next);
                                 i--;
