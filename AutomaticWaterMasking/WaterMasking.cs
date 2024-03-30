@@ -1433,9 +1433,14 @@ namespace AutomaticWaterMasking
             return true;
         }
 
+        private static bool ShouldRemovePointFromViewPort(Point point, Way<Point> viewPort, Way<Point> unmodifiedViewPort)
+        {
+            return viewPort.Contains(point) && !unmodifiedViewPort.Contains(point);
+        }
+
         // remove intersections where a way intersects with the viewPort at a single point from the outside
         // TODO: need to clean up some repetitive code in the below function
-        private static void CleanOutsideSinglePointIntersections(Dictionary<Point, Way<Point>> pointsToIntersectingWays, Way<Point> viewPort, List<Point> intersections)
+        private static void CleanOutsideSinglePointIntersections(Dictionary<Point, Way<Point>> pointsToIntersectingWays, Way<Point> viewPort, Way<Point> unmodifiedViewPort, List<Point> intersections)
         {
             for (int i = 0; i < viewPort.Count; i++)
             {
@@ -1451,7 +1456,7 @@ namespace AutomaticWaterMasking
                         if (curPoint.Equals(otherWay[0]) && PointOutsideViewPort(next, otherWay, viewPort))
                         {
                             intersections.Remove(curPoint);
-                            if (viewPort.Contains(curPoint))
+                            if (ShouldRemovePointFromViewPort(curPoint, viewPort, unmodifiedViewPort))
                             {
                                 viewPort.Remove(curPoint);
                                 i--;
@@ -1461,7 +1466,7 @@ namespace AutomaticWaterMasking
                         else if (curPoint.Equals(otherWay[otherWay.Count - 1]) && PointOutsideViewPort(prev, otherWay, viewPort))
                         {
                             intersections.Remove(curPoint);
-                            if (viewPort.Contains(curPoint))
+                            if (ShouldRemovePointFromViewPort(curPoint, viewPort, unmodifiedViewPort))
                             {
                                 viewPort.Remove(curPoint);
                                 i--;
@@ -1472,7 +1477,7 @@ namespace AutomaticWaterMasking
                     if (PointTouchesViewPortOutside(otherWay, curPoint, viewPort))
                     {
                         intersections.Remove(curPoint);
-                        if (viewPort.Contains(curPoint))
+                        if (ShouldRemovePointFromViewPort(curPoint, viewPort, unmodifiedViewPort))
                         {
                             viewPort.Remove(curPoint);
                             i--;
@@ -1485,7 +1490,7 @@ namespace AutomaticWaterMasking
                         {
                             Point nextCurPoint = otherWay.GetPointAtOffsetFromPoint(curPoint, 1);
                             intersections.Remove(curPoint);
-                            if (viewPort.Contains(curPoint))
+                            if (ShouldRemovePointFromViewPort(curPoint, viewPort, unmodifiedViewPort))
                             {
                                 viewPort.Remove(curPoint);
                                 i--;
@@ -1501,7 +1506,7 @@ namespace AutomaticWaterMasking
                         {
                             Point nextCurPoint = otherWay.GetPointAtOffsetFromPoint(curPoint, -1);
                             intersections.Remove(curPoint);
-                            if (viewPort.Contains(curPoint))
+                            if (ShouldRemovePointFromViewPort(curPoint, viewPort, unmodifiedViewPort))
                             {
                                 viewPort.Remove(curPoint);
                                 i--;
@@ -1517,7 +1522,7 @@ namespace AutomaticWaterMasking
                         while (PointOnViewPortSegment(viewPort, otherWay, next) && PointOnViewPortSegment(viewPort, otherWay, nnext))
                         {
                             intersections.Remove(next);
-                            if (viewPort.Contains(next))
+                            if (ShouldRemovePointFromViewPort(curPoint, viewPort, unmodifiedViewPort))
                             {
                                 viewPort.Remove(next);
                                 i--;
@@ -1537,6 +1542,7 @@ namespace AutomaticWaterMasking
             List<Point> allIntersections = new List<Point>();
             Dictionary<Point, Way<Point>> pointsToIntersectingWays = new Dictionary<Point, Way<Point>>();
             List<Way<Point>> waysShouldBeLandPolygons = new List<Way<Point>>();
+            Way<Point> unmodifiedViewPort = new Way<Point>(viewPort);
 
             WaterMasking.totalPoints = 0;
             foreach (Way<Point> way in coastWays)
@@ -1588,7 +1594,7 @@ namespace AutomaticWaterMasking
                 }
             }
 
-            CleanOutsideSinglePointIntersections(pointsToIntersectingWays, viewPort, allIntersections);
+            CleanOutsideSinglePointIntersections(pointsToIntersectingWays, viewPort, unmodifiedViewPort, allIntersections);
             bool keepTrying = true;
             int startingIdx = 0;
             Way<Point> startingWay = null;
