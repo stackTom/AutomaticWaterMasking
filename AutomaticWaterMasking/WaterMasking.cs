@@ -579,7 +579,7 @@ namespace AutomaticWaterMasking
     {
         public Dictionary<string, List<string>> wayIDsToWayNodes;
         public Dictionary<string, Point> nodeIDsToCoords;
-        public Dictionary<string, Way<Point>> wayIDsToWays;
+        public Dictionary<string, Way<Point>> wayIDsToWays; // TODO: do we really need a Dictionary, can probably be a List
         // POSSIBLE BUG: can a way every be both inner and outer in a relationship?
         public Dictionary<string, string> wayIDsToRelation;
         public Dictionary<string, string> wayIDsToType;
@@ -769,7 +769,7 @@ namespace AutomaticWaterMasking
             return wayIDsToRelations;
         }
 
-        public Dictionary<string, Way<Point>> GetWays(bool mergeMultipolygons)
+        public List<Way<Point>> GetWays(bool mergeMultipolygons)
         {
             List<Way<Point>> toRemove = new List<Way<Point>>();
             List<Way<Point>> toAdd = new List<Way<Point>>();
@@ -840,10 +840,13 @@ namespace AutomaticWaterMasking
             }
             foreach (Way<Point> way in toAdd)
             {
-                this.wayIDsToWays.Add(way.wayID, way);
+                if (way.Count > 0)
+                {
+                    this.wayIDsToWays.Add(way.wayID, way);
+                }
             }
 
-            return this.wayIDsToWays;
+            return this.wayIDsToWays.Values.ToList();
         }
 
         public static string WaysToOSMXML(List<Way<Point>> ways)
@@ -868,6 +871,20 @@ namespace AutomaticWaterMasking
             }
 
             return d.OuterXml;
+        }
+
+        public void ForceFreeMemory()
+        {
+            this.wayIDsToWayNodes = null;
+            this.nodeIDsToCoords = null;
+            this.wayIDsToWays = null;
+            this.wayIDsToRelation = null;
+            this.wayIDsToType = null;
+            this.d = null;
+            this.wayIDsToWays = null;
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
         }
     }
 
@@ -1644,26 +1661,17 @@ namespace AutomaticWaterMasking
         public static void CreatePolygons(List<Way<Point>> coastWaterPolygons, List<Way<Point>> islands, List<Way<Point>> inlandPolygons, string coastXML, string waterXML, Way<Point> viewPort)
         {
             OSMXMLParser waterParser = new OSMXMLParser(waterXML);
-            Dictionary<string, Way<Point>> waterWays = waterParser.GetWays(true);
-            OSMXMLParser coastParser = new OSMXMLParser(coastXML);
-            Dictionary<string, Way<Point>> coastWays = coastParser.GetWays(true);
-            // remove any that have length 0 (can get when edit with JOSM)
-            foreach (string wayID in coastWays.Keys.ToArray())
-            {
-                Way<Point> way = coastWays[wayID];
-                if (way.Count == 0)
-                {
-                    coastWays.Remove(wayID);
-                }
-            }
+            List<Way<Point>> waterWays = waterParser.GetWays(true);
+            // frees memory and calls GC.Collect and GC.WaitForPendingFinalizers
+            waterParser.ForceFreeMemory();
 
-            foreach (string wayID in waterWays.Keys.ToArray())
+            OSMXMLParser coastParser = new OSMXMLParser(coastXML);
+            List<Way<Point>> coastWays = coastParser.GetWays(true);
+            // frees memory and calls GC.Collect and GC.WaitForPendingFinalizers
+            coastParser.ForceFreeMemory();
+
+            foreach (Way<Point> way in waterWays)
             {
-                Way<Point> way = waterWays[wayID];
-                if (way.Count == 0)
-                {
-                    waterWays.Remove(wayID);
-                }
                 // non coast water ways should always be closed polygons
                 // TODO: is this always true? Lake erie, for example, is not closed for some reason.
                 // Not sure if this is bug with your code trying to form water multipolygons, or just something
@@ -1676,6 +1684,9 @@ namespace AutomaticWaterMasking
             }
 
             List<Way<Point>> mergedCoasts = MergeCoastLines(coastWays);
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
 
             List<Way<Point>> mergedWaterPolys = CoastWaysToPolygon(mergedCoasts, viewPort, islands, inlandPolygons);
             // add the water polygons of coast ways which intersect with the view port
@@ -1693,12 +1704,11 @@ namespace AutomaticWaterMasking
             }
         }
 
-        private static List<Way<Point>> MergeCoastLines(Dictionary<string, Way<Point>> coastWays)
+        private static List<Way<Point>> MergeCoastLines(List<Way<Point>> coastWays)
         {
-            List<Way<Point>> toMerge = new List<Way<Point>>(coastWays.Values.ToArray());
-            OSMXMLParser.MergeMultipolygonWays(toMerge);
+            OSMXMLParser.MergeMultipolygonWays(coastWays);
 
-            return toMerge;
+            return coastWays;
         }
 
         public static void GetPolygons(List<Way<Point>> coastWaterPolygons, List<Way<Point>> islands, List<Way<Point>> inlandPolygons, DownloadArea d, Way<Point> viewPort, string saveLoc)
