@@ -806,6 +806,11 @@ namespace AutomaticWaterMasking
                     {
                         way.relation = this.wayIDsToRelation[wayID];
                         way.type = this.wayIDsToType[wayID];
+
+                        if (way.relation != null && way.relation != "inner" && way.relation != "outer")
+                        {
+                            throw new IncorrectRelationException(way);
+                        }
                     }
                 }
 
@@ -1661,12 +1666,28 @@ namespace AutomaticWaterMasking
         public static void CreatePolygons(List<Way<Point>> coastWaterPolygons, List<Way<Point>> islands, List<Way<Point>> inlandPolygons, string coastXML, string waterXML, Way<Point> viewPort)
         {
             OSMXMLParser waterParser = new OSMXMLParser(waterXML);
-            List<Way<Point>> waterWays = waterParser.GetWays(true);
+            List<Way<Point>> waterWays = null;
+            try
+            {
+                waterWays = waterParser.GetWays(true);
+            }
+            catch (IncorrectRelationException e)
+            {
+                throw e;
+            }
             // frees memory and calls GC.Collect and GC.WaitForPendingFinalizers
             waterParser.ForceFreeMemory();
 
             OSMXMLParser coastParser = new OSMXMLParser(coastXML);
-            List<Way<Point>> coastWays = coastParser.GetWays(true);
+            List<Way<Point>> coastWays = null;
+            try
+            {
+                coastWays = coastParser.GetWays(true);
+            }
+            catch (IncorrectRelationException e)
+            {
+                throw e;
+            }
             // frees memory and calls GC.Collect and GC.WaitForPendingFinalizers
             coastParser.ForceFreeMemory();
 
@@ -1716,7 +1737,14 @@ namespace AutomaticWaterMasking
             string coastXML = DownloadOsmCoastData(d, saveLoc + Path.DirectorySeparatorChar + "coast.osm");
             string waterXML = DownloadOsmWaterData(d, saveLoc + Path.DirectorySeparatorChar + "water.osm");
 
-            CreatePolygons(coastWaterPolygons, islands, inlandPolygons, coastXML, waterXML, viewPort);
+            try
+            {
+                CreatePolygons(coastWaterPolygons, islands, inlandPolygons, coastXML, waterXML, viewPort);
+            }
+            catch (IncorrectRelationException e)
+            {
+                throw e;
+            }
         }
 
         public static Point LatLongToPixel(Point latLong, decimal startLat, decimal startLong, decimal pixelsPerLongitude, decimal pixelsPerLatitude)
@@ -1801,7 +1829,7 @@ namespace AutomaticWaterMasking
                 }
                 else
                 {
-                    throw new Exception("Unknown way relation");
+                    throw new IncorrectRelationException(way);
                 }
             }
         }
