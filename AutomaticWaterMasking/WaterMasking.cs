@@ -980,6 +980,7 @@ namespace AutomaticWaterMasking
                 {
                     using (var wc = new System.Net.WebClient())
                     {
+                        wc.Headers.Add("User-Agent", "MyApp/1.0 (contact: youremail@domain.com)");
                         try
                         {
                             Console.WriteLine("Downloading OSM data using server: " + server + ". This might take a while. Please wait...");
