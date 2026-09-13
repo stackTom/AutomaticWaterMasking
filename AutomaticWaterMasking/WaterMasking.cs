@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Xml;
 using System.Linq;
@@ -43,7 +44,7 @@ namespace AutomaticWaterMasking
         public override string ToString()
         {
             // G29 basically trims trailing 0's
-            return Decimal.Round(this.Y, ROUND_TO_DIGITS).ToString("G29") + ", " + Decimal.Round(this.X, ROUND_TO_DIGITS).ToString("G29");
+            return Decimal.Round(this.Y, ROUND_TO_DIGITS).ToString("G29", CultureInfo.InvariantCulture) + ", " + Decimal.Round(this.X, ROUND_TO_DIGITS).ToString("G29", CultureInfo.InvariantCulture);
         }
 
         public override bool Equals(object obj)
@@ -538,8 +539,8 @@ namespace AutomaticWaterMasking
             {
                 XmlElement nodeEle = d.CreateElement(string.Empty, "node", string.Empty);
                 nodeEle.SetAttribute("id", startIdx.ToString());
-                nodeEle.SetAttribute("lat", p.Y.ToString());
-                nodeEle.SetAttribute("lon", p.X.ToString());
+                nodeEle.SetAttribute("lat", p.Y.ToString(CultureInfo.InvariantCulture));
+                nodeEle.SetAttribute("lon", p.X.ToString(CultureInfo.InvariantCulture));
                 AddMissingOSMAttributes(nodeEle);
                 osmEle.AppendChild(nodeEle);
 
@@ -598,8 +599,9 @@ namespace AutomaticWaterMasking
             XmlNodeList nodeTags = d.GetElementsByTagName("node");
             foreach (XmlElement node in nodeTags)
             {
-                decimal lat = Convert.ToDecimal(node.GetAttribute("lat"));
-                decimal lon = Convert.ToDecimal(node.GetAttribute("lon"));
+                // OSM XML always uses '.' as the decimal separator regardless of the user's locale
+                decimal lat = decimal.Parse(node.GetAttribute("lat"), CultureInfo.InvariantCulture);
+                decimal lon = decimal.Parse(node.GetAttribute("lon"), CultureInfo.InvariantCulture);
                 string id = node.GetAttribute("id");
                 Point coords = new Point(lon, lat);
                 nodeIDsToCoords.Add(id, coords);
@@ -916,6 +918,13 @@ namespace AutomaticWaterMasking
             this.startLon -= padding;
             this.endLon += padding;
         }
+
+        // Overpass bbox "(south, west, north, east)". Must use '.' as the decimal separator regardless of the user's locale
+        public string ToOverpassBBox()
+        {
+            return "(" + this.endLat.ToString(CultureInfo.InvariantCulture) + ", " + this.startLon.ToString(CultureInfo.InvariantCulture) + ", "
+                       + this.startLat.ToString(CultureInfo.InvariantCulture) + ", " + this.endLon.ToString(CultureInfo.InvariantCulture) + ")";
+        }
     }
 
     public class MaskingPolys
@@ -980,6 +989,11 @@ namespace AutomaticWaterMasking
                 {
                     using (var wc = new System.Net.WebClient())
                     {
+                        // Overpass replies with "Content-Type: application/osm3s+xml" (no charset), so WebClient
+                        // falls back to Encoding.Default, the system ANSI code page. On a multi-byte code page
+                        // (e.g. Shift-JIS on a Japanese locale) the UTF-8 bytes of non-ASCII tag values are
+                        // mis-decoded and can swallow the closing quote of an attribute, corrupting the XML.
+                        wc.Encoding = System.Text.Encoding.UTF8;
                         wc.Headers.Add("User-Agent", "MyApp/1.0 (contact: youremail@domain.com)");
                         try
                         {
@@ -1011,7 +1025,7 @@ namespace AutomaticWaterMasking
             string[] waterQueries = { "rel[\"natural\"=\"water\"]", "rel[\"waterway\"=\"riverbank\"]", "way[\"natural\"=\"water\"]", "way[\"waterway\"=\"riverbank\"]", "way[\"waterway\"=\"dock\"]" };
             string waterOSM = null;
             string queryParams = "?data=(";
-            string bbox = "(" + d.endLat + ", " + d.startLon + ", " + d.startLat + ", " + d.endLon + ")";
+            string bbox = d.ToOverpassBBox();
             foreach (string query in waterQueries)
             {
                 queryParams += query + bbox + ";";
@@ -1030,7 +1044,7 @@ namespace AutomaticWaterMasking
             string[] coastQueries = { "way[\"natural\"=\"coastline\"]" };
             string coastOSM = null;
             string queryParams = "?data=(";
-            string bbox = "(" + d.endLat + ", " + d.startLon + ", " + d.startLat + ", " + d.endLon + ")";
+            string bbox = d.ToOverpassBBox();
             foreach (string query in coastQueries)
             {
                 queryParams += query + bbox + ";";
